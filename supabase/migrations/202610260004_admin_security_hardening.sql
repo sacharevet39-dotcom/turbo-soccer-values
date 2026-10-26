@@ -10,6 +10,7 @@ insert into private.admin_maintenance_state(singleton, last_ephemeral_cleanup_at
 values (true, '-infinity') on conflict (singleton) do nothing;
 alter table private.admin_maintenance_state enable row level security;
 revoke all on private.admin_maintenance_state from public, anon, authenticated, service_role;
+revoke all on private.admin_login_limits from public, anon, authenticated, service_role;
 
 -- Existing regular-admin labels may predate the title validation below. Keep
 -- the account records, but replace conflicting display labels with a neutral
@@ -30,24 +31,41 @@ as $$
 declare
   v_count integer;
   v_last_cleanup timestamptz;
+  v_bucket_exists boolean;
+  v_has_lock boolean;
+  v_max_bucket_count constant integer := 50000;
 begin
   if p_key is null or p_key !~ '^[a-f0-9]{64}$' or p_limit is null or p_limit not between 1 and 5000 then
     return false;
   end if;
 
-  -- One caller at a time checks the cleanup lease. Only rows that have been
-  -- useless for at least 24 hours are removed; current rate-limit buckets and
-  -- live presence are never eligible.
-  if pg_try_advisory_xact_lock(739184620173::bigint) then
+  select exists (
+    select 1 from private.admin_login_limits l where l.bucket_key = p_key
+  ) into v_bucket_exists;
+
+  -- New keys are serialized and capped. A flood of unique usernames/IPs can
+  -- consume at most 50,000 buckets; once full, new keys fail closed. Existing
+  -- buckets still work. Cleanup only removes rows useless for at least 24h.
+  v_has_lock := pg_try_advisory_xact_lock(739184620173::bigint);
+  if v_has_lock then
     select s.last_ephemeral_cleanup_at into v_last_cleanup
     from private.admin_maintenance_state s where s.singleton = true;
-    if v_last_cleanup is null or v_last_cleanup < now() - interval '6 hours' then
+    if v_last_cleanup is null or v_last_cleanup < now() - interval '6 hours'
+       or (not v_bucket_exists and (select count(*) from private.admin_login_limits) >= v_max_bucket_count) then
       delete from private.admin_presence where expires_at < now() - interval '24 hours';
       delete from private.admin_login_limits where window_started_at < now() - interval '24 hours';
       insert into private.admin_maintenance_state(singleton, last_ephemeral_cleanup_at)
       values (true, now())
       on conflict (singleton) do update set last_ephemeral_cleanup_at = excluded.last_ephemeral_cleanup_at;
     end if;
+  elsif not v_bucket_exists then
+    -- Fail closed for new keys while a cleanup/capacity check is in progress.
+    return false;
+  end if;
+
+  if not v_bucket_exists then
+    select count(*) into v_count from private.admin_login_limits;
+    if v_count >= v_max_bucket_count then return false; end if;
   end if;
 
   insert into private.admin_login_limits(bucket_key, window_started_at, attempts)
@@ -85,7 +103,8 @@ begin
      or length(trim(p_title)) not between 1 and 32
      or position('OWNER' in upper(trim(coalesce(p_title, '')))) > 0
      or p_title_color not in ('#b4f34b', '#ffd166', '#ff6b6b', '#7bdff2', '#c77dff', '#ffffff')
-     or lower(trim(p_internal_email)) !~ '^[a-z0-9._-]+@accounts\.turbo-soccer-values\.invalid$' then
+     or p_username is null or p_display_name is null or p_title is null or p_title_color is null or p_internal_email is null
+     or lower(trim(p_internal_email)) !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@accounts\.turbo-soccer-values\.invalid$' then
     raise exception 'invalid admin profile' using errcode = '22023';
   end if;
   insert into private.admin_users(user_id) values (p_user_id) on conflict do nothing;

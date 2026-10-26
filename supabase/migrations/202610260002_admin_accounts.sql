@@ -116,6 +116,12 @@ as $$
     where a.user_id = (select auth.uid())
       and a.status = 'active'
       and a.role in ('OWNER', 'ADMIN')
+      and not a.must_change_password
+      and exists (
+        select 1 from auth.sessions s
+        where s.id = ((select auth.jwt())->>'session_id')::uuid
+          and s.user_id = a.user_id
+      )
   );
 $$;
 revoke all on function public.is_turbo_admin() from public, anon;
@@ -132,6 +138,11 @@ as $$
          a.status, a.must_change_password, a.last_seen
   from private.admin_accounts a
   where a.user_id = (select auth.uid()) and a.status = 'active'
+    and exists (
+      select 1 from auth.sessions s
+      where s.id = ((select auth.jwt())->>'session_id')::uuid
+        and s.user_id = a.user_id
+    )
 $$;
 revoke all on function public.my_turbo_admin_profile() from public, anon;
 grant execute on function public.my_turbo_admin_profile() to authenticated;
@@ -155,7 +166,6 @@ begin
   set username = lower(p_username), display_name = trim(p_display_name),
       title = trim(p_title), title_color = p_title_color, updated_at = now()
   where user_id = v_uid and status = 'active' and not must_change_password
-    and to_timestamp(((select auth.jwt())->>'iat')::double precision) > tokens_valid_after
     and exists(select 1 from auth.sessions s where s.id=((select auth.jwt())->>'session_id')::uuid and s.user_id=v_uid);
   if not found then raise exception 'admin account unavailable' using errcode = '42501'; end if;
   insert into private.admin_audit_log(actor_user_id, target_user_id, action, details)

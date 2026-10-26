@@ -1,7 +1,10 @@
+import { randomStrongAdminPassword } from '../../shared/password-policy.js'
+
 export type Env = {
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  SUPABASE_SECRET_API_KEY: string
   TURBO_RATE_LIMIT_SALT: string
 }
 
@@ -98,6 +101,5 @@ export function validAdminTitle(value: unknown): value is string {
 }
 
 export function randomPassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+  return randomStrongAdminPassword()
 }

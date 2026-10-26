@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Check, Copy, RefreshCw, Shield, UserPlus, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../../shared/password-policy.js'
 
 type Profile = { role: 'OWNER' | 'ADMIN'; username: string | null; display_name: string; title: string; title_color: string }
 type Account = { user_id: string; username: string | null; display_name: string; role: string; title: string; title_color: string; status: string; must_change_password: boolean; last_seen: string | null; online: boolean }
@@ -45,14 +46,14 @@ export function AdminSelfSettings({ profile, onSaved }: { profile: Profile; onSa
   }
   async function changePassword(e: FormEvent) {
     e.preventDefault()
-    if (!supabase || newPassword.length < 8) { setMessage('Use a password with at least 8 characters.'); return }
+    if (!supabase || !isStrongAdminPassword(newPassword)) { setMessage(ADMIN_PASSWORD_POLICY_MESSAGE); return }
     setBusy(true); setMessage('')
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setMessage(error ? 'Password could not be changed.' : 'Password changed. Sign in again to refresh your secure session.')
     if (!error) { setNewPassword(''); await supabase.auth.signOut() }
     setBusy(false)
   }
-  return <section className="admin-panel self-settings"><div className="panel-heading"><div><span className="panel-kicker">ACCOUNT SETTINGS</span><h2>Your admin identity</h2></div></div><form className="admin-form profile-form" onSubmit={saveProfile}><div className="profile-grid"><label>Username<input required minLength={3} maxLength={24} pattern="[A-Za-z0-9_]+" value={username} onChange={e => setUsername(e.target.value)} /></label><label>Public display name<input required maxLength={40} value={displayName} onChange={e => setDisplayName(e.target.value)} /></label><label>Title<input required maxLength={32} value={title} onChange={e => setTitle(e.target.value)} /></label><div className="title-color-picker"><span>Title color</span><div>{colors.map(color => <button type="button" key={color} aria-label={`Choose ${color}`} aria-pressed={titleColor === color} style={{ background: color }} onClick={() => setTitleColor(color)} />)}</div></div></div><button className="secondary-button" disabled={busy}>Save profile</button></form><form className="admin-form password-form" onSubmit={changePassword}><label>Change password<input type="password" minLength={8} autoComplete="new-password" placeholder="At least 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label><button className="secondary-button" disabled={busy || newPassword.length < 8}>Update password</button></form><p className="admin-submessage">Current access token expiry: {accessExpiry ? new Date(accessExpiry * 1000).toLocaleString() : 'Unavailable'} · refresh is handled by Supabase Auth.</p>{message && <p className="admin-submessage" role="status">{message}</p>}</section>
+  return <section className="admin-panel self-settings"><div className="panel-heading"><div><span className="panel-kicker">ACCOUNT SETTINGS</span><h2>Your admin identity</h2></div></div><form className="admin-form profile-form" onSubmit={saveProfile}><div className="profile-grid"><label>Username<input required minLength={3} maxLength={24} pattern="[A-Za-z0-9_]+" value={username} onChange={e => setUsername(e.target.value)} /></label><label>Public display name<input required maxLength={40} value={displayName} onChange={e => setDisplayName(e.target.value)} /></label><label>Title<input required maxLength={32} value={title} onChange={e => setTitle(e.target.value)} /></label><div className="title-color-picker"><span>Title color</span><div>{colors.map(color => <button type="button" key={color} aria-label={`Choose ${color}`} aria-pressed={titleColor === color} style={{ background: color }} onClick={() => setTitleColor(color)} />)}</div></div></div><button className="secondary-button" disabled={busy}>Save profile</button></form><form className="admin-form password-form" onSubmit={changePassword}><label>Change password<input type="password" minLength={ADMIN_PASSWORD_MIN_LENGTH} autoComplete="new-password" placeholder="12+ chars: upper, lower, number, symbol" value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label><button className="secondary-button" disabled={busy || !isStrongAdminPassword(newPassword)}>Update password</button></form><p className="admin-submessage">Current access token expiry: {accessExpiry ? new Date(accessExpiry * 1000).toLocaleString() : 'Unavailable'} · refresh is handled by Supabase Auth.</p>{message && <p className="admin-submessage" role="status">{message}</p>}</section>
 }
 
 export function AdminManagement() {

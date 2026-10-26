@@ -1,4 +1,5 @@
 import { accessFor, authUser, bearer, currentToken, json, rpc, sameOrigin, serviceAuth, type Env } from '../../_shared/admin'
+import { ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../../../shared/password-policy.js'
 
 type Context = { request: Request; env: Env }
 
@@ -11,7 +12,7 @@ export async function onRequestPost({ request, env }: Context) {
   if (!access || access.role !== 'ADMIN' || access.status !== 'active' || !access.must_change_password || !currentToken(token, access)) return json({ error: 'This password-change session is no longer valid.' }, 403)
   let body: { password?: unknown }
   try { body = await request.json() as { password?: unknown } } catch { return json({ error: 'Invalid request.' }, 400) }
-  if (typeof body.password !== 'string' || body.password.length < 8 || body.password.length > 72) return json({ error: 'Use a password from 8 to 72 characters.' }, 400)
+  if (!isStrongAdminPassword(body.password)) return json({ error: ADMIN_PASSWORD_POLICY_MESSAGE }, 400)
   try {
     await serviceAuth(env, `/admin/users/${encodeURIComponent(user.id)}`, 'PUT', { password: body.password })
   } catch {

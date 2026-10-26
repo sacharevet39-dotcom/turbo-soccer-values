@@ -30,7 +30,12 @@ export async function onRequestPost({ request, env }: Context) {
       const temporaryPassword = randomPassword()
       let created: Record<string, unknown> | null
       try {
-        created = await serviceAuth(env, '/admin/users', 'POST', { email: internalEmail, password: temporaryPassword, email_confirm: true })
+        created = await serviceAuth(env, '/admin/users', 'POST', {
+          email: internalEmail,
+          password: temporaryPassword,
+          email_confirm: true,
+          app_metadata: { turbo_admin_provisioning_username: username.toLowerCase() },
+        })
       } catch {
         return json({ error: 'Auth account creation failed or could not be confirmed. Do not treat the admin as created or share a temporary password. Check Auth users manually before retrying.' }, 502)
       }

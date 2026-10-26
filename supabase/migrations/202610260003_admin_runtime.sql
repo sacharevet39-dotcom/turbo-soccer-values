@@ -52,17 +52,59 @@ grant execute on function public.turbo_server_login_email(text) to service_role;
 create or replace function public.turbo_server_login_status(p_username text)
 returns table(role text,status text,must_change_password boolean)
 language sql stable security definer set search_path = '' as $$
- select a.role,a.status,a.must_change_password from private.admin_accounts a where a.username=lower(trim(p_username))
+ select a.role,a.status,a.must_change_password
+ from private.admin_accounts a where a.username=lower(trim(p_username))
 $$;
 revoke all on function public.turbo_server_login_status(text) from public,anon,authenticated;
 grant execute on function public.turbo_server_login_status(text) to service_role;
 
+create or replace function public.turbo_server_admin_login_record(p_username text)
+returns table(role text,status text,must_change_password boolean,user_id uuid,internal_email text)
+language sql stable security definer set search_path = '' as $$
+ select a.role,a.status,a.must_change_password,a.user_id,a.internal_email
+ from private.admin_accounts a where a.username=lower(trim(p_username))
+$$;
+revoke all on function public.turbo_server_admin_login_record(text) from public,anon,authenticated;
+grant execute on function public.turbo_server_admin_login_record(text) to service_role;
+
+create or replace function public.turbo_owner_rotate_admin_auth_email(
+ p_actor uuid,p_target uuid,p_internal_email text
+) returns void language plpgsql security definer set search_path = '' as $$
+begin
+ if not exists(select 1 from private.admin_accounts where user_id=p_actor and role='OWNER' and status='active') then
+  raise exception 'owner authorization required' using errcode='42501';
+ end if;
+ if p_internal_email is null or lower(trim(p_internal_email)) !~
+   '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@accounts\.turbo-soccer-values\.invalid$' then
+  raise exception 'invalid private Auth alias' using errcode='22023';
+ end if;
+ update private.admin_accounts set internal_email=lower(trim(p_internal_email)),updated_at=now()
+ where user_id=p_target and role='ADMIN';
+ if not found then raise exception 'regular admin not found' using errcode='P0002'; end if;
+ insert into private.admin_audit_log(actor_user_id,target_user_id,action)
+ values(p_actor,p_target,'account.auth_alias_rotated');
+end;
+$$;
+revoke all on function public.turbo_owner_rotate_admin_auth_email(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.turbo_owner_rotate_admin_auth_email(uuid,uuid,text) to service_role;
+
 create or replace function public.turbo_consume_login_attempt(p_key text, p_limit integer default 8)
 returns boolean language plpgsql security definer set search_path = ''
 as $$
-declare v_count integer;
+declare
+ v_count integer;
+ v_bucket_exists boolean;
+ v_max_bucket_count constant integer := 50000;
 begin
- if p_key !~ '^[a-f0-9]{64}$' or p_limit not between 1 and 5000 then return false; end if;
+ if p_key is null or p_key !~ '^[a-f0-9]{64}$' or p_limit is null or p_limit not between 1 and 5000 then return false; end if;
+ select exists(select 1 from private.admin_login_limits where bucket_key=p_key) into v_bucket_exists;
+ if not v_bucket_exists then
+  -- Serialize new bucket creation so concurrent unique keys cannot exceed the
+  -- hard cap during the interval before migration 004 adds scheduled cleanup.
+  if not pg_try_advisory_xact_lock(739184620173::bigint) then return false; end if;
+  select count(*) into v_count from private.admin_login_limits;
+  if v_count >= v_max_bucket_count then return false; end if;
+ end if;
  insert into private.admin_login_limits(bucket_key,window_started_at,attempts) values(p_key,now(),1)
  on conflict(bucket_key) do update set
   window_started_at=case when private.admin_login_limits.window_started_at < now()-interval '15 minutes' then now() else private.admin_login_limits.window_started_at end,
@@ -80,10 +122,11 @@ create or replace function public.turbo_owner_create_admin(
 begin
  if not exists(select 1 from private.admin_accounts where user_id=p_actor and role='OWNER' and status='active') then raise exception 'owner authorization required' using errcode='42501'; end if;
  if not exists(select 1 from auth.users where id=p_user_id) then raise exception 'Auth account not found' using errcode='22023'; end if;
- if p_username !~ '^[a-zA-Z0-9_]{3,24}$' or length(trim(p_display_name)) not between 1 and 40
+ if p_username is null or p_display_name is null or p_title is null or p_title_color is null or p_internal_email is null
+    or p_username !~ '^[a-zA-Z0-9_]{3,24}$' or length(trim(p_display_name)) not between 1 and 40
     or length(trim(p_title)) not between 1 and 32
     or p_title_color not in ('#b4f34b','#ffd166','#ff6b6b','#7bdff2','#c77dff','#ffffff')
-    or lower(trim(p_internal_email)) !~ '^[a-z0-9._-]+@accounts\.turbo-soccer-values\.invalid$' then
+    or lower(trim(p_internal_email)) !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@accounts\.turbo-soccer-values\.invalid$' then
    raise exception 'invalid admin profile' using errcode='22023';
  end if;
  insert into private.admin_users(user_id) values(p_user_id) on conflict do nothing;
@@ -123,6 +166,9 @@ begin
   must_change_password=case when v_old_status is distinct from p_status then true else must_change_password end,
   password_change_required_at=case when v_old_status is distinct from p_status then clock_timestamp() else password_change_required_at end,updated_at=now()
  where user_id=p_target;
+ if v_old_status is distinct from p_status then
+  delete from auth.sessions where user_id=p_target;
+ end if;
  insert into private.admin_audit_log(actor_user_id,target_user_id,action,details)
  values(p_actor,p_target,case when v_old_status is distinct from p_status then 'account.status_changed' else 'account.profile_changed' end,
   jsonb_build_object('username',lower(trim(p_username)),'status',p_status,'title',trim(p_title)));
@@ -137,6 +183,7 @@ begin
  update private.admin_accounts set must_change_password=true,password_change_required_at=clock_timestamp(),tokens_valid_after=clock_timestamp(),updated_at=now()
  where user_id=p_target and role='ADMIN';
  if not found then raise exception 'regular admin not found' using errcode='P0002'; end if;
+ delete from auth.sessions where user_id=p_target;
  insert into private.admin_audit_log(actor_user_id,target_user_id,action) values(p_actor,p_target,'account.password_reset');
 end; $$;
 revoke all on function public.turbo_owner_mark_password_reset(uuid,uuid) from public, anon, authenticated;
@@ -148,6 +195,7 @@ begin
  if not exists(select 1 from private.admin_accounts where user_id=p_actor and role='OWNER' and status='active') then raise exception 'owner authorization required' using errcode='42501'; end if;
  if not exists(select 1 from private.admin_accounts where user_id=p_target and role='ADMIN') then raise exception 'regular admin not found' using errcode='P0002'; end if;
  update private.admin_accounts set tokens_valid_after=clock_timestamp(),updated_at=now() where user_id=p_target;
+ delete from auth.sessions where user_id=p_target;
  insert into private.admin_audit_log(actor_user_id,target_user_id,action) values(p_actor,p_target,'account.sessions_revoked');
 end; $$;
 revoke all on function public.turbo_owner_revoke_sessions(uuid,uuid) from public,anon,authenticated;
@@ -222,7 +270,11 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 begin
  if new.encrypted_password is distinct from old.encrypted_password then
   update private.admin_accounts set last_password_changed_at=clock_timestamp(),tokens_valid_after=clock_timestamp(),updated_at=now()
-  where user_id=new.id;
+  where user_id=new.id and role='ADMIN';
+  -- The OWNER continues to use the existing Auth login/session behavior.
+  if exists(select 1 from private.admin_accounts where user_id=new.id and role='ADMIN') then
+   delete from auth.sessions where user_id=new.id;
+  end if;
   insert into private.admin_audit_log(actor_user_id,target_user_id,action)
   select new.id,new.id,'account.password_changed' where exists(select 1 from private.admin_accounts a where a.user_id=new.id);
  end if;
@@ -235,6 +287,7 @@ for each row execute function private.audit_turbo_auth_password_change();
 
 -- Ensure the service key is the only route into the private schema/tables.
 grant usage on schema private to service_role;
-grant select,insert,update on private.admin_accounts,private.admin_users,private.admin_audit_log,private.admin_presence,private.admin_login_limits to service_role;
-revoke delete on private.admin_accounts,private.admin_users,private.admin_audit_log,private.admin_presence,private.admin_login_limits from service_role;
+grant select,insert,update on private.admin_accounts,private.admin_users,private.admin_audit_log,private.admin_presence to service_role;
+revoke all on private.admin_login_limits from public,anon,authenticated,service_role;
+revoke delete on private.admin_accounts,private.admin_users,private.admin_audit_log,private.admin_presence from service_role;
 grant usage,select on all sequences in schema private to service_role;
