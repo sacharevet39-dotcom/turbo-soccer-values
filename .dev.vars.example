@@ -1,0 +1,6 @@
+# Copy to .dev.vars only for local Pages Functions development.
+# Do not commit .dev.vars or put the server key in a VITE_* variable.
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-publishable-or-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-supabase-key
+TURBO_RATE_LIMIT_SALT=replace-with-a-random-secret-of-at-least-32-characters

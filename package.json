@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && npm run check:functions && vite build",
+    "check:functions": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --strict functions/_shared/admin.ts functions/api/admin/username-login.ts functions/api/admin/manage.ts functions/api/admin/presence.ts functions/api/admin/first-password.ts",
     "preview": "vite preview"
   },
   "dependencies": {
