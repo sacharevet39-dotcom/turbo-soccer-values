@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
-  ChevronRight, CircleHelp, ExternalLink, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
+  ChevronRight, CircleHelp, ExternalLink, Eye, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
   Menu, Search, ShieldCheck, SlidersHorizontal, Star, TicketPercent, Trash2, Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
 import { configured, errorMessage, itemImage, supabase, type Item, type PromoCode } from './lib/supabase'
@@ -17,7 +17,7 @@ function rarityTone(rarity: string) {
   const tones: Record<string, string> = { common: 'common', commun: 'common', uncommon: 'uncommon', peucommun: 'uncommon', rare: 'rare', epic: 'epic', epique: 'epic', legendary: 'legendary', legendaire: 'legendary', exclusive: 'exclusive', exclusif: 'exclusive', halloween: 'halloween', beta: 'beta' }
   return `rarity-${tones[key] ?? 'other'}`
 }
-type View = 'values' | 'trade'
+type View = 'values' | 'trade' | 'codes'
 type TradeLine = { id: string; quantity: number }
 type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
 type ColorDraft = { name: string; hex: string }
@@ -66,13 +66,17 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
     <nav id="site-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
+      {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
     </nav>
     <div className="top-actions"><OnlineCount /><VisitCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
   </header>
 }
 
 function PublicApp() {
-  const [view, setView] = useState<View>(new URLSearchParams(location.search).get('tab') === 'trade' ? 'trade' : 'values')
+  const [view, setView] = useState<View>(() => {
+    const tab = new URLSearchParams(location.search).get('tab')
+    return tab === 'trade' || tab === 'codes' ? tab : 'values'
+  })
   const [items, setItems] = useState<Item[]>([])
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,13 +145,12 @@ function PublicApp() {
           <img src="/brand/turbo-soccer-goal.png" alt="" />
         </div>
       </section>
-      <PromoCodeShowcase codes={promoCodes} />
       <section className="content-section">
-        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : 'YOUR TRADE'}</div><h2>{view === 'values' ? 'Item values' : 'Trade calculator'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : 'Add items for each player to compare totals.'}</p></div>
+        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'YOUR TRADE' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
         </div>
-        {!configured && <SetupNotice />}
-        {loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
+        {view !== 'codes' && !configured && <SetupNotice />}
+        {view !== 'codes' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
         {view === 'values' ? <>
           <div className="toolbar">
             <label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by item name" aria-label="Search by item name" />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} /></button>}</label>
@@ -158,7 +161,7 @@ function PublicApp() {
             <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
-        </> : <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} />}
+        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
       </section>
     </main>
     <AdminIdentities />
@@ -194,29 +197,19 @@ function OnlineCount() {
     const timer = window.setInterval(() => void update(), 30000)
     return () => { active = false; window.clearInterval(timer) }
   }, [])
-  return count === null ? null : <span className="live-pill visitor-count"><span /> {count} online</span>
+  return count === null ? null : <span className="live-pill visitor-count"><span className="live-status-dot" aria-hidden="true" /> {count} online</span>
 }
 
 function VisitCount() {
   const [total, setTotal] = useState<number | null>(null)
-  const [added, setAdded] = useState(false)
   useEffect(() => {
     let active = true
-    let lastTotal: number | null = null
-    let flashTimer = 0
-    const flash = () => {
-      setAdded(true)
-      window.clearTimeout(flashTimer)
-      flashTimer = window.setTimeout(() => setAdded(false), 2200)
-    }
     const refresh = async () => {
       try {
         const response = await fetch('/api/visitors', { cache: 'no-store' })
         if (!response.ok) return
         const result = await response.json() as { total?: unknown }
         if (active && typeof result.total === 'number') {
-          if (lastTotal !== null && result.total > lastTotal) flash()
-          lastTotal = result.total
           setTotal(result.total)
         }
       } catch { /* Visitor totals are optional when Pages Functions are unavailable. */ }
@@ -230,20 +223,19 @@ function VisitCount() {
         }
         const response = await fetch('/api/visitors', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ visitId }) })
         if (!response.ok) { await refresh(); return }
-        const result = await response.json() as { total?: unknown; counted?: unknown }
+        const result = await response.json() as { total?: unknown }
         if (active && typeof result.total === 'number') {
-          lastTotal = result.total
           setTotal(result.total)
-          if (result.counted === true) flash()
         }
       } catch { await refresh() }
     }
     void register()
     const timer = window.setInterval(() => void refresh(), 30000)
-    return () => { active = false; window.clearInterval(timer); window.clearTimeout(flashTimer) }
+    return () => { active = false; window.clearInterval(timer) }
   }, [])
   if (total === null) return null
-  return <span className="live-pill visit-total" aria-label={`${total.toLocaleString()} total site visits`}><span className="visit-total-dot" /> <strong key={total}>{total.toLocaleString()}</strong><span className="visit-total-label">visits</span> {added && <b className="visit-increment">+1</b>}</span>
+  const formattedTotal = new Intl.NumberFormat('en-US').format(total)
+  return <span className="live-pill visit-total" aria-label={`${formattedTotal} total site ${total === 1 ? 'visit' : 'visits'}`}><Eye size={14} aria-hidden="true" /><strong>{formattedTotal}</strong><span className="visit-total-label">{total === 1 ? 'visit' : 'visits'}</span></span>
 }
 
 function AdminIdentities() {
@@ -262,20 +254,18 @@ function AdminIdentities() {
   return <section className="community-admins"><div className="community-admins-heading"><div className="eyebrow section-eyebrow">THE TEAM</div><h2>Community admins</h2></div><div className="community-admin-list">{profiles.map((profile, index) => <div className="community-admin" key={`${profile.display_name}-${index}`}><span className="community-admin-status"><i className={profile.online ? 'online' : ''} /></span><div><b>{profile.display_name}</b><small style={{ color: profile.title_color }}>{profile.title}</small></div></div>)}</div></section>
 }
 
-function PromoCodeShowcase({ codes }: { codes: PromoCode[] }) {
+function PromoCodeShowcase({ codes, loading }: { codes: PromoCode[]; loading: boolean }) {
   const [copied, setCopied] = useState('')
-  if (!codes.length) return null
   async function copyCode(code: string) {
     try { await navigator.clipboard.writeText(code); setCopied(code); window.setTimeout(() => setCopied(current => current === code ? '' : current), 1600) }
     catch { setCopied('') }
   }
-  return <section className="promo-showcase" aria-labelledby="promo-heading">
-    <div className="promo-showcase-heading"><div><div className="eyebrow section-eyebrow">EXTRA</div><h2 id="promo-heading">Promo codes</h2><p>Redeem these codes in Turbo Soccer while they are available.</p></div><TicketPercent size={28} aria-hidden="true" /></div>
-    <div className="promo-code-grid">{codes.map(entry => <article className={`promo-code-card${entry.is_expired ? ' expired' : ''}`} key={entry.id}>
+  return <section className="promo-showcase" aria-label="Promo codes">
+    {codes.length ? <div className="promo-code-grid">{codes.map(entry => <article className={`promo-code-card${entry.is_expired ? ' expired' : ''}`} key={entry.id}>
       <div className="promo-code-status"><span aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span>{entry.is_expired ? 'Expired' : 'Available'}</div>
       <div className="promo-code-main"><b>{entry.code}</b><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyCode(entry.code)} aria-label={`Copy ${entry.code}`}>{copied === entry.code ? 'Copied' : 'Copy'}</button></div>
       <p>{entry.reward}</p>
-    </article>)}</div>
+    </article>)}</div> : <p className="promo-showcase-empty">{loading ? 'Loading promo codes…' : 'No promo codes are listed right now.'}</p>}
   </section>
 }
 
