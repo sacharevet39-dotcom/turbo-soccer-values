@@ -111,7 +111,7 @@ function PublicApp() {
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-car-frame">
-            <img src="/brand/turbo-soccer-hero.png" alt="" />
+            <img src="/brand/octane-fennec.jpg" alt="" />
           </div>
           <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
           <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
