@@ -139,6 +139,7 @@ function PublicApp() {
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
+  const [rarity, setRarity] = useState('all')
   const [sort, setSort] = useState<'high' | 'low'>('high')
   const [page, setPage] = useState(1)
   const [theirSide, setTheirSide] = useState<TradeLine[]>([])
@@ -179,13 +180,14 @@ function PublicApp() {
   const filtered = useMemo(() => items
     .filter(i => i.name.toLowerCase().includes(search.trim().toLowerCase()))
     .filter(i => category === 'all' || i.category === category)
+    .filter(i => rarity === 'all' || i.rarity === rarity)
     .sort((a, b) => {
       const av = a.value ?? -1, bv = b.value ?? -1
       return sort === 'high' ? bv - av || a.name.localeCompare(b.name) : av - bv || a.name.localeCompare(b.name)
-    }), [items, search, category, sort])
+    }), [items, search, category, rarity, sort])
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => setPage(1), [search, category, sort])
+  useEffect(() => setPage(1), [search, category, rarity, sort])
 
   return <div className="app-shell">
     <SiteNav activeView={view} onViewChange={setView} />
@@ -216,6 +218,7 @@ function PublicApp() {
             <div className="toolbar-right"><label className="select-wrap"><SlidersHorizontal size={15} /><select value={category} onChange={e => setCategory(e.target.value)} aria-label="Filter category"><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={14} /></label><button className="sort-button" onClick={() => setSort(sort === 'high' ? 'low' : 'high')}><span>{sort === 'high' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpWideNarrow size={15} />}</span> Value: {sort === 'high' ? 'Highest' : 'Lowest'}</button></div>
           </div>
           <div className="category-chips" aria-label="Quick category filters"><button className={category === 'all' ? 'category-chip active' : 'category-chip'} onClick={() => setCategory('all')}>All items</button>{quickCategories.map(c => <button key={c} className={category === c ? 'category-chip active' : 'category-chip'} onClick={() => setCategory(category === c ? 'all' : c)}>{c}</button>)}</div>
+          <div className="rarity-filter" aria-label="Filter by rarity"><span className="rarity-filter-title">RARITY</span><div className="rarity-filter-options"><button type="button" className={`rarity-filter-chip rarity-all${rarity === 'all' ? ' active' : ''}`} aria-pressed={rarity === 'all'} onClick={() => setRarity('all')}>All</button>{RARITY_OPTIONS.map(option => <button type="button" key={option} className={`rarity-filter-chip ${rarityTone(option)}${rarity === option ? ' active' : ''}`} aria-pressed={rarity === option} onClick={() => setRarity(rarity === option ? 'all' : option)}><i aria-hidden="true" />{option}</button>)}</div></div>
           {loading ? <div className="loading-grid">{Array.from({ length: 8 }, (_, i) => <div className="skeleton-card" key={i}><div /><span /><b /></div>)}</div> : pageItems.length ? <>
             <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} trend={priceTrends[item.id]} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
@@ -394,21 +397,16 @@ function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[
 }
 
 function DemandStars({ rating, interactive = false, onChange }: { rating: number | null; interactive?: boolean; onChange?: (value: number | null) => void }) {
-  return <div className={`demand-stars${interactive ? ' interactive' : ''}${rating == null ? ' unrated' : ''}`} role={interactive ? 'radiogroup' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5 stars`}>
-    {Array.from({ length: 5 }, (_, index) => {
-      const fill = Math.max(0, Math.min(1, (rating ?? 0) - index))
-      const size = interactive ? 21 : 15
-      return <span className="demand-star" key={index} aria-hidden={interactive ? undefined : true}>
-        <Star className="demand-star-empty" size={size} strokeWidth={interactive ? 2.25 : 2} />
-        <Star className="demand-star-filled" size={size} strokeWidth={interactive ? 2.25 : 2} style={{ clipPath: `inset(0 ${(1 - fill) * 100}% 0 0)` }} />
-        {interactive && <>
-          <button type="button" className="demand-half-button demand-half-left" role="radio" aria-checked={rating === index + 0.5} aria-label={`${index + 0.5} out of 5 stars`} onClick={() => onChange?.(index + 0.5)} />
-          <button type="button" className="demand-half-button demand-half-right" role="radio" aria-checked={rating === index + 1} aria-label={`${index + 1} out of 5 stars`} onClick={() => onChange?.(index + 1)} />
-        </>}
-      </span>
-    })}
-    {interactive && <span className="demand-current" aria-live="polite">{rating == null ? '—' : `${rating}/5`}</span>}
-    {interactive && rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
+  const thumb = rating != null && rating % 1 !== 0 ? '/brand/demand-star-half.png' : '/brand/demand-star-full.png'
+  return <div className={`demand-stars${interactive ? ' interactive' : ''}${rating == null ? ' unrated' : ''}`} role={interactive ? 'group' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5`}>
+    {interactive ? <>
+      <input className="demand-rating-slider" type="range" min="0.5" max="5" step="0.5" value={rating ?? 0.5} aria-label="Community demand rating" aria-valuetext={rating == null ? 'Not rated' : `${rating} out of 5`} style={{ '--demand-star-thumb': `url(${thumb})` } as React.CSSProperties} onChange={event => onChange?.(Number(event.target.value))} />
+      <span className="demand-current" aria-live="polite">{rating == null ? '—' : `${rating}/5`}</span>
+      {rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
+    </> : <>
+      <img className="demand-single-star" src="/brand/demand-star-full.png" alt="" />
+      <span className="demand-score">{rating == null ? 'Not rated' : `${rating}/5`}</span>
+    </>}
   </div>
 }
 
