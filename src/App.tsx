@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
-  ChevronRight, CircleHelp, ExternalLink, ImagePlus, LockKeyhole, LogOut, Minus, Plus,
-  Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, X,
+  ChevronRight, CircleHelp, ExternalLink, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
+  Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
 import { configured, errorMessage, itemImage, supabase, type Item } from './lib/supabase'
 import { sourceImages } from './catalogImages'
@@ -21,6 +21,7 @@ type View = 'values' | 'trade'
 type TradeLine = { id: string; quantity: number }
 type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string }
 type AdminProfile = { role: 'OWNER' | 'ADMIN'; username: string | null; display_name: string; title: string; title_color: string; status: string; must_change_password: boolean; last_seen: string | null }
+type AdminSection = 'publish' | 'profile' | 'accounts'
 const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '' }
 
 function App() {
@@ -339,6 +340,11 @@ function Admin() {
   const [imageSearch, setImageSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [adminSection, setAdminSection] = useState<AdminSection>('publish')
+
+  useEffect(() => {
+    if (profile?.role !== 'OWNER' && adminSection === 'accounts') setAdminSection('publish')
+  }, [profile?.role, adminSection])
 
   const refresh = useCallback(async () => {
     if (!supabase) { setChecking(false); return }
@@ -512,11 +518,17 @@ function Admin() {
   const visibleImages = availableImages.filter(path => path.toLowerCase().includes(imageSearch.trim().toLowerCase()))
   const selectedImage = itemImage(form.image_path)
   const selectedUpload = uploadedImageObjectPath(form.image_path)
-  return <AdminShell><div className="admin-dashboard"><header className="admin-header"><div><div className="eyebrow section-eyebrow">TURBO SOCCER · ADMIN</div><h1>{profile?.role === 'OWNER' ? 'Owner control room' : 'Your item list'}</h1><p>Add and update items{profile?.role === 'OWNER' ? ', manage admin accounts, and check site activity.' : ' for the community.'}</p></div><div className="admin-user"><span className="admin-avatar">{(profile?.display_name ?? session.email ?? profile?.username ?? 'A').slice(0, 1).toUpperCase()}</span><div><b>{profile?.display_name ?? session.email ?? profile?.username}</b><small><span className="count-dot" /> {profile?.role === 'OWNER' ? 'OWNER' : profile?.title ?? 'ADMIN'}</small></div><button className="icon-button" onClick={() => void signOut()} title="Sign out"><LogOut size={17} /></button></div></header>
+  return <AdminShell><div className="admin-dashboard"><header className="admin-header"><div><div className="eyebrow section-eyebrow">TURBO SOCCER · ADMIN</div><h1>{profile?.role === 'OWNER' ? 'Owner control room' : 'Your item list'}</h1><p>Choose what you want to manage.</p></div><div className="admin-user"><span className="admin-avatar">{(profile?.display_name ?? session.email ?? profile?.username ?? 'A').slice(0, 1).toUpperCase()}</span><div><b>{profile?.display_name ?? session.email ?? profile?.username}</b><small><span className="count-dot" /> {profile?.role === 'OWNER' ? 'OWNER' : profile?.title ?? 'ADMIN'}</small></div><button className="icon-button" onClick={() => void signOut()} title="Sign out"><LogOut size={17} /></button></div></header>
     {notice && <div className={`admin-notice ${/could not|error|must|already|use a/i.test(notice) ? 'error' : ''}`} role="status"><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15} /></button></div>}
-    <AdminSelfSettings profile={profile!} onSaved={() => void refresh()} />
-    {profile?.role === 'OWNER' && <AdminManagement />}
-    <div className="admin-layout"><section className="admin-panel editor-panel"><div className="panel-heading"><div><span className="panel-kicker">{editing ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{editing ? 'Update details' : 'Add to the list'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(blankForm) }}>Cancel edit</button>}</div>
+    <nav className="admin-main-menu" aria-label="Admin menu">
+      <button type="button" className={`admin-menu-action ${adminSection === 'publish' ? 'active' : ''}`} aria-pressed={adminSection === 'publish'} onClick={() => setAdminSection('publish')}><PackagePlus size={20} /><span>Publier une offre<small>Objets et valeurs</small></span></button>
+      <a className="admin-menu-action admin-menu-site" href="/"><Globe2 size={20} /><span>Voir le site<small>Catalogue public</small></span><ExternalLink size={14} /></a>
+      {profile?.role === 'OWNER' && <button type="button" className={`admin-menu-action ${adminSection === 'accounts' ? 'active' : ''}`} aria-pressed={adminSection === 'accounts'} onClick={() => setAdminSection('accounts')}><UsersRound size={20} /><span>Comptes admins<small>Réservé au owner</small></span></button>}
+      <button type="button" className={`admin-menu-action ${adminSection === 'profile' ? 'active' : ''}`} aria-pressed={adminSection === 'profile'} onClick={() => setAdminSection('profile')}><UserRound size={20} /><span>Mon profil<small>Nom et mot de passe</small></span></button>
+    </nav>
+    {adminSection === 'profile' && <section className="admin-section-content" aria-label="Mon profil"><AdminSelfSettings profile={profile!} onSaved={() => void refresh()} /></section>}
+    {adminSection === 'accounts' && profile?.role === 'OWNER' && <section className="admin-section-content" aria-label="Gestion des comptes admin"><AdminManagement /></section>}
+    {adminSection === 'publish' && <div className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">CATALOGUE</span><h2>Publier une offre</h2><p>Ajoute un objet ou mets à jour une valeur déjà publiée.</p></div><div className="admin-layout"><section className="admin-panel editor-panel"><div className="panel-heading"><div><span className="panel-kicker">{editing ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{editing ? 'Update details' : 'Add to the list'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(blankForm) }}>Cancel edit</button>}</div>
       <form onSubmit={saveItem} className="admin-form"><label>Item name <span className="required-star">*</span><input maxLength={100} required placeholder="Enter the official name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label><div className="form-two"><label>Value in coins <small>whole numbers</small><input type="number" min="0" step="1" placeholder="Leave blank if unknown" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></label><label>Category <small>optional</small><input list="category-options" maxLength={60} placeholder="e.g. Ball" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /><datalist id="category-options">{CATEGORY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label></div><div className="form-two"><label>Rarity <small>optional</small><input list="rarity-options" maxLength={60} placeholder="e.g. Limited" value={form.rarity} onChange={e => setForm({ ...form, rarity: e.target.value })} /><datalist id="rarity-options">{RARITY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label><label>Image <small>optional</small><span className="image-status">{form.image_path ? 'Image selected' : 'No image selected'}</span></label></div>
       <div className="image-picker">
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
@@ -531,7 +543,7 @@ function Admin() {
       <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}</small>{form.rarity && <span className={`rarity-chip ${rarityTone(form.rarity)}`}>{form.rarity}</span>}</div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
       <button className="primary-button full-button" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add item'} <Check size={16} /></button></form></section>
     <section className="admin-panel catalogue-panel"><div className="panel-heading"><div><span className="panel-kicker">LIVE CATALOGUE</span><h2>Published items <span className="catalogue-total">{items.length}</span></h2></div><button className="export-button" onClick={exportCsv} disabled={!items.length}>Export CSV</button></div><label className="search-box admin-search"><Search size={16} /><input placeholder="Find an item..." value={filter} onChange={e => setFilter(e.target.value)} /></label><div className="catalogue-list">{adminItems.length ? adminItems.map(item => <div className="catalogue-row" key={item.id}><div className="catalogue-thumb">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}</div><div className="catalogue-name"><b>{item.name}</b><small>{item.category || 'No category'}</small>{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div><CoinValue value={item.value} compact className="catalogue-value" /><button className="row-action" onClick={() => editItem(item)} aria-label={`Edit ${item.name}`}>Edit</button><button className="row-delete" onClick={() => void deleteItem(item)} aria-label={`Delete ${item.name}`}><Trash2 size={15} /></button></div>) : <div className="catalogue-empty"><BrandMark /><b>{filter ? 'No items match' : 'No items added yet'}</b><span>{filter ? 'Try another search.' : 'Add your first item to start the catalogue.'}</span></div>}</div><div className="catalogue-footer"><span><span className="count-dot" /> Changes publish automatically</span><a href="/">View public site <ExternalLink size={13} /></a></div></section></div>
-    <div className="admin-security-note"><ShieldCheck size={16} /><span>Writes are enforced by Supabase Row Level Security. Only accounts listed in the private admin allowlist can change catalogue data.</span></div>
+    <div className="admin-security-note"><ShieldCheck size={16} /><span>Writes are enforced by Supabase Row Level Security. Only accounts listed in the private admin allowlist can change catalogue data.</span></div></div>}
   </div></AdminShell>
 }
 
