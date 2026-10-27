@@ -15,6 +15,19 @@ export type Item = {
   rarity: string | null
   description: string | null
   demand: number | null
+  variant_parent_id: string | null
+  variant_color_name: string | null
+  variant_color_hex: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PromoCode = {
+  id: string
+  code: string
+  reward: string
+  is_expired: boolean
+  sort_order: number
   created_at: string
   updated_at: string
 }
