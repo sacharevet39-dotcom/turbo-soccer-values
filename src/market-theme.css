@@ -506,13 +506,17 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .image-option-delete { width: 21px; height: 21px; }
 }
 
-/* The supplied Octane/Fennec artwork fills the hero as a clear, framed feature. */
+/* The soccer banner sits beside the copy; the transparent item montage stays on the right. */
+.hero-feature-art { position: absolute; z-index: 1; top: 50%; left: 28%; width: min(420px, 22vw); aspect-ratio: 463 / 223; overflow: hidden; border: 1px solid #424242; border-radius: 12px; background: #111; box-shadow: 0 14px 36px #0008; transform: translateY(-50%) rotate(-1deg); animation: car-float 8s ease-in-out infinite; }
+.hero-feature-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .hero-art { right: 2%; width: 48%; opacity: 1; }
-.hero-car-frame { width: min(760px, 100%); height: auto; aspect-ratio: 1024 / 384; overflow: hidden; border: 1px solid #515151; border-radius: 14px; background: #f2f2f2; box-shadow: 0 20px 54px #0009; transform: rotate(-1deg); animation: car-float 7s ease-in-out infinite; }
-.hero-car-frame:before { inset: 8px; border: 1px solid #ffffff80; border-radius: 8px; }
-.hero-car-frame:after { display: none; }
+.hero-car-frame { width: min(590px, 92%); height: clamp(190px, 21vw, 270px); overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; animation: car-float 7s ease-in-out infinite; }
+.hero-car-frame:before, .hero-car-frame:after { display: none; }
 .hero-car-frame img { width: 100%; height: 100%; object-fit: contain; filter: none; }
 .hero-fennec-card { display: none; }
+@media (max-width: 1250px) {
+  .hero-feature-art { display: none; }
+}
 @media (max-width: 800px) {
   .hero-art { right: 1%; width: 49%; opacity: .3; }
   .hero-car-frame { width: 100%; }
