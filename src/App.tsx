@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, ExternalLink, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
-  Menu, Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, UserRound, UsersRound, X,
+  Menu, Search, ShieldCheck, SlidersHorizontal, Star, TicketPercent, Trash2, Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
-import { configured, errorMessage, itemImage, supabase, type Item } from './lib/supabase'
+import { configured, errorMessage, itemImage, supabase, type Item, type PromoCode } from './lib/supabase'
 import { sourceImages } from './catalogImages'
 import { AdminManagement, AdminSelfSettings } from './admin/AdminManagement'
 import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../shared/password-policy.js'
@@ -19,10 +19,13 @@ function rarityTone(rarity: string) {
 }
 type View = 'values' | 'trade'
 type TradeLine = { id: string; quantity: number }
-type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string }
+type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
+type ColorDraft = { name: string; hex: string }
+type PromoForm = { code: string; reward: string; is_expired: boolean }
 type AdminProfile = { role: 'OWNER' | 'ADMIN'; username: string | null; display_name: string; title: string; title_color: string; status: string; must_change_password: boolean; last_seen: string | null }
-type AdminSection = 'publish' | 'profile' | 'accounts'
-const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '' }
+type AdminSection = 'publish' | 'profile' | 'accounts' | 'codes'
+const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '', variant_parent_id: '', variant_color_name: '', variant_color_hex: '' }
+const blankPromoForm: PromoForm = { code: '', reward: '', is_expired: false }
 
 function App() {
   useEffect(() => {
@@ -71,6 +74,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
 function PublicApp() {
   const [view, setView] = useState<View>(new URLSearchParams(location.search).get('tab') === 'trade' ? 'trade' : 'values')
   const [items, setItems] = useState<Item[]>([])
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
@@ -87,6 +91,8 @@ function PublicApp() {
     const { data, error } = await supabase.from('items').select('*').order('name').range(0, 999)
     if (error) setLoadError(errorMessage(error))
     else { setItems((data ?? []) as Item[]); setLoadError('') }
+    const promoResult = await supabase.from('promo_codes').select('*').order('sort_order').order('code')
+    if (!promoResult.error) setPromoCodes((promoResult.data ?? []) as PromoCode[])
     setLoading(false)
   }, [])
 
@@ -131,12 +137,11 @@ function PublicApp() {
         <div className="hero-feature-art" aria-hidden="true">
           <img src="/brand/turbo-soccer-feature.jpg" alt="" />
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-car-frame">
-            <img src="/brand/turbo-soccer-hero.png" alt="" />
-          </div>
+        <div className="hero-art hero-goal-art" aria-hidden="true">
+          <img src="/brand/turbo-soccer-goal.png" alt="" />
         </div>
       </section>
+      <PromoCodeShowcase codes={promoCodes} />
       <section className="content-section">
         <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : 'YOUR TRADE'}</div><h2>{view === 'values' ? 'Item values' : 'Trade calculator'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : 'Add items for each player to compare totals.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
@@ -208,6 +213,23 @@ function AdminIdentities() {
   return <section className="community-admins"><div className="community-admins-heading"><div className="eyebrow section-eyebrow">THE TEAM</div><h2>Community admins</h2></div><div className="community-admin-list">{profiles.map((profile, index) => <div className="community-admin" key={`${profile.display_name}-${index}`}><span className="community-admin-status"><i className={profile.online ? 'online' : ''} /></span><div><b>{profile.display_name}</b><small style={{ color: profile.title_color }}>{profile.title}</small></div></div>)}</div></section>
 }
 
+function PromoCodeShowcase({ codes }: { codes: PromoCode[] }) {
+  const [copied, setCopied] = useState('')
+  if (!codes.length) return null
+  async function copyCode(code: string) {
+    try { await navigator.clipboard.writeText(code); setCopied(code); window.setTimeout(() => setCopied(current => current === code ? '' : current), 1600) }
+    catch { setCopied('') }
+  }
+  return <section className="promo-showcase" aria-labelledby="promo-heading">
+    <div className="promo-showcase-heading"><div><div className="eyebrow section-eyebrow">EXTRA</div><h2 id="promo-heading">Promo codes</h2><p>Redeem these codes in Turbo Soccer while they are available.</p></div><TicketPercent size={28} aria-hidden="true" /></div>
+    <div className="promo-code-grid">{codes.map(entry => <article className={`promo-code-card${entry.is_expired ? ' expired' : ''}`} key={entry.id}>
+      <div className="promo-code-status"><span aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span>{entry.is_expired ? 'Expired' : 'Available'}</div>
+      <div className="promo-code-main"><b>{entry.code}</b><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyCode(entry.code)} aria-label={`Copy ${entry.code}`}>{copied === entry.code ? 'Copied' : 'Copy'}</button></div>
+      <p>{entry.reward}</p>
+    </article>)}</div>
+  </section>
+}
+
 function SetupNotice() {
   return <div className="setup-notice"><div className="notice-icon"><CircleHelp size={18} /></div><div><b>Database setup is needed</b><p>The site is ready, but the public list will appear after Supabase is connected and the first items are added in the admin panel.</p></div><a href="/admin">Open admin setup <ChevronRight size={14} /></a></div>
 }
@@ -216,7 +238,7 @@ function ItemCard({ item }: { item: Item }) {
   const image = itemImage(item.image_path)
   return <a className="item-card" href={`/item/${item.id}`} aria-label={`Open ${item.name} details`}>
     <div className="item-card-heading"><h3>{item.name}</h3>{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div>
-    <div className="card-visual">{image ? <img src={image} alt={item.name} loading="lazy" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}<span className="view-details">Details <ChevronRight size={13} /></span></div>
+    <div className="card-visual">{image ? <img src={image} alt={item.name} loading="lazy" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}{item.variant_color_hex && <span className="variant-color-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}{item.variant_color_name && <span className="variant-color-label">{item.variant_color_name}</span>}<span className="view-details">Details <ChevronRight size={13} /></span></div>
     <div className="card-info"><div className="item-subline"><span>{item.category || 'Uncategorized'}</span><span className="card-value-label">VALUE</span></div><CoinValue value={item.value} compact className="card-value" /><div className="card-demand"><span>DEMAND</span><DemandStars rating={item.demand} /></div></div>
   </a>
 }
@@ -276,7 +298,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   }
   return <div className="app-shell"><SiteNav activeView="values" />
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
-      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
+      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} />)}</div></section>}
     </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer></div>
 }
@@ -287,18 +309,14 @@ function CoinValue({ value, className = '', compact = false, prefix = '' }: { va
 }
 
 function TradeCalculator({ items, left, right, setLeft, setRight }: { items: Item[]; left: TradeLine[]; right: TradeLine[]; setLeft: (v: TradeLine[]) => void; setRight: (v: TradeLine[]) => void }) {
-  const [choice, setChoice] = useState<Record<string, string>>({ left: '', right: '' })
   const total = (lines: TradeLine[]) => lines.reduce((sum, line) => sum + ((items.find(i => i.id === line.id)?.value ?? 0) * line.quantity), 0)
   const leftTotal = total(left), rightTotal = total(right), diff = leftTotal - rightTotal
-  function add(side: 'left' | 'right') {
-    const id = choice[side]
-    if (!id) return
+  function add(side: 'left' | 'right', id: string) {
     const list = side === 'left' ? left : right
     const set = side === 'left' ? setLeft : setRight
     const existing = list.find(line => line.id === id)
     if (!existing && list.length >= 9) return
     set(existing ? list.map(line => line.id === id ? { ...line, quantity: line.quantity + 1 } : line) : [...list, { id, quantity: 1 }])
-    setChoice({ ...choice, [side]: '' })
   }
   function update(side: 'left' | 'right', id: string, quantity: number) {
     const list = side === 'left' ? left : right, set = side === 'left' ? setLeft : setRight
@@ -306,25 +324,31 @@ function TradeCalculator({ items, left, right, setLeft, setRight }: { items: Ite
   }
   return <div className="trade-wrap">
     <div className="trade-hint"><ArrowLeftRight size={16} /><span>Compare what you give against what you receive. Items without a value count as 0 until one is set.</span></div>
-    <div className="trade-columns"><TradeSide title="THEIR OFFER" tint="blue" items={items} lines={left} value={choice.left} onChange={v => setChoice({ ...choice, left: v })} onAdd={() => add('left')} onUpdate={(id, q) => update('left', id, q)} /><div className="trade-mid"><span>VS</span></div><TradeSide title="YOUR OFFER" tint="lime" items={items} lines={right} value={choice.right} onChange={v => setChoice({ ...choice, right: v })} onAdd={() => add('right')} onUpdate={(id, q) => update('right', id, q)} /></div>
+    <div className="trade-columns"><TradeSide title="THEIR OFFER" tint="blue" items={items} lines={left} onAdd={id => add('left', id)} onUpdate={(id, q) => update('left', id, q)} /><div className="trade-mid"><span>VS</span></div><TradeSide title="YOUR OFFER" tint="lime" items={items} lines={right} onAdd={id => add('right', id)} onUpdate={(id, q) => update('right', id, q)} /></div>
     <div className="trade-result"><div><span className="result-label">VALUE DIFFERENCE</span><CoinValue value={diff} className={diff === 0 ? 'even' : diff > 0 ? 'gain' : 'loss'} prefix={diff > 0 ? '+' : ''} /><small>{diff === 0 ? 'Even trade' : diff > 0 ? 'Their offer is higher' : 'Your offer is higher'}</small></div><div className="result-summary"><span>Their total <CoinValue value={leftTotal} compact /></span><span>Your total <CoinValue value={rightTotal} compact /></span></div><button className="secondary-button" onClick={() => { setLeft([]); setRight([]) }}>Clear trade</button></div>
     <p className="trade-disclaimer"><CircleHelp size={14} /> Calculator uses community-entered values and does not guarantee a fair or official Roblox trade.</p>
   </div>
 }
 
-function TradeSide({ title, tint, items, lines, value, onChange, onAdd, onUpdate }: { title: string; tint: 'blue' | 'lime'; items: Item[]; lines: TradeLine[]; value: string; onChange: (v: string) => void; onAdd: () => void; onUpdate: (id: string, quantity: number) => void }) {
+function TradeSide({ title, tint, items, lines, onAdd, onUpdate }: { title: string; tint: 'blue' | 'lime'; items: Item[]; lines: TradeLine[]; onAdd: (id: string) => void; onUpdate: (id: string, quantity: number) => void }) {
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('all')
+  const categories = useMemo(() => [...new Set(items.map(item => item.category).filter((value): value is string => Boolean(value)))].sort(), [items])
+  const matches = useMemo(() => items.filter(item => (category === 'all' || item.category === category) && item.name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 12), [items, category, search])
   const selectedItems = lines.map(line => ({ line, item: items.find(entry => entry.id === line.id) })).filter((entry): entry is { line: TradeLine; item: Item } => Boolean(entry.item))
   const total = selectedItems.reduce((sum, { line, item }) => sum + (item.value ?? 0) * line.quantity, 0)
   return <section className={`trade-side ${tint}`}>
     <div className="side-header"><span>{title}</span><CoinValue value={total} compact /></div>
-    <div className="add-item-row"><select value={value} onChange={e => onChange(e.target.value)} aria-label={`Select item for ${title.toLowerCase()}`}><option value="">Choose an item…</option>{items.map(item => <option key={item.id} value={item.id}>{item.name}{item.value === null ? ' · Not valued' : ` · ${formatValue(item.value)}`}</option>)}</select><button type="button" className="add-item-button" onClick={onAdd} disabled={!value || (!lines.some(line => line.id === value) && lines.length >= 9)} aria-label="Add selected item"><Plus size={17} /></button></div>
+    <div className="trade-picker"><div className="trade-picker-controls"><label className="trade-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search items…" aria-label={`Search items for ${title.toLowerCase()}`} /></label><select value={category} onChange={event => setCategory(event.target.value)} aria-label="Filter by category"><option value="all">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}</select></div>
+      {search || category !== 'all' ? <div className="trade-search-results" role="listbox" aria-label="Matching items">{matches.length ? matches.map(item => <button type="button" key={item.id} role="option" aria-selected="false" disabled={!lines.some(line => line.id === item.id) && lines.length >= 9} onClick={() => { onAdd(item.id); setSearch('') }}><span className="trade-result-thumb">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}{item.variant_color_hex && <i style={{ background: item.variant_color_hex }} />}</span><span className="trade-result-description"><b>{item.name}</b><small>{item.category || 'Uncategorized'}</small></span><CoinValue value={item.value} compact /></button>) : <p>No matching items.</p>}</div> : <p className="trade-picker-hint">Search and select an item to add it to the board.</p>}
+    </div>
     <div className="trade-board" aria-label={`${title}: up to nine items`}>
       {Array.from({ length: 9 }, (_, index) => {
         const entry = selectedItems[index]
         if (!entry) return <div className="trade-slot-empty" key={`empty-${index}`}><Plus size={16} /><span>Empty slot</span></div>
         const { item, line } = entry
         return <article className="trade-item-tile" key={line.id}>
-          <div className="trade-tile-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} /> : <ImagePlus size={23} />}<span className="trade-tile-price">{item.value == null ? 'Not valued' : <CoinValue value={item.value} compact />}</span></div>
+          <div className="trade-tile-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} /> : <ImagePlus size={23} />}{item.variant_color_hex && <i className="trade-variant-band" style={{ backgroundColor: item.variant_color_hex }} />}{item.value == null ? <span className="trade-tile-price">Not valued</span> : <span className="trade-tile-price"><CoinValue value={item.value} compact /></span>}</div>
           <b className="trade-tile-name" title={item.name}>{item.name}</b>
           <div className="trade-tile-controls"><button type="button" onClick={() => onUpdate(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}><Minus size={12} /></button><span>{line.quantity}</span><button type="button" onClick={() => onUpdate(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`}><Plus size={12} /></button></div>
         </article>
@@ -346,6 +370,7 @@ function Admin() {
   const [loginError, setLoginError] = useState('')
   const [notice, setNotice] = useState('')
   const [items, setItems] = useState<Item[]>([])
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
   const [hiddenImages, setHiddenImages] = useState<string[]>([])
   const [form, setForm] = useState<FormState>(blankForm)
   const [editing, setEditing] = useState<string | null>(null)
@@ -354,6 +379,10 @@ function Admin() {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [adminSection, setAdminSection] = useState<AdminSection>('publish')
+  const [hasColorVariants, setHasColorVariants] = useState(false)
+  const [colorVariants, setColorVariants] = useState<ColorDraft[]>([{ name: '', hex: '#60A5FA' }])
+  const [promoForm, setPromoForm] = useState<PromoForm>(blankPromoForm)
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null)
 
   useEffect(() => {
     if (profile?.role !== 'OWNER' && adminSection === 'accounts') setAdminSection('publish')
@@ -373,6 +402,8 @@ function Admin() {
       const result = await supabase.from('items').select('*').order('name').range(0, 999)
       if (result.error) setNotice(`Could not load items: ${errorMessage(result.error)}`)
       else setItems((result.data ?? []) as Item[])
+      const promoResult = await supabase.from('promo_codes').select('*').order('sort_order').order('code')
+      if (!promoResult.error) setPromoCodes((promoResult.data ?? []) as PromoCode[])
       const hidden = await supabase.from('admin_hidden_catalog_images').select('image_path')
       if (!hidden.error) setHiddenImages((hidden.data ?? []).map(row => row.image_path))
     }
@@ -428,7 +459,7 @@ function Admin() {
     setBusy(false)
   }
   function editItem(item: Item) {
-    setEditing(item.id); setForm({ name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '', demand: item.demand == null ? '' : String(item.demand) }); window.scrollTo({ top: 0, behavior: 'smooth' })
+    setEditing(item.id); setHasColorVariants(false); setForm({ name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '', demand: item.demand == null ? '' : String(item.demand), variant_parent_id: item.variant_parent_id ?? '', variant_color_name: item.variant_color_name ?? '', variant_color_hex: item.variant_color_hex ?? '' }); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   async function saveItem(e: FormEvent) {
     e.preventDefault(); if (!supabase) return
@@ -438,10 +469,24 @@ function Admin() {
     if (val !== null && (!Number.isSafeInteger(val) || val < 0)) { setNotice('Value must be a non-negative whole number.'); return }
     setBusy(true); setNotice('')
     const demand = form.demand === '' ? null : Number(form.demand)
-    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand }
-    const result = editing ? await supabase.from('items').update(payload).eq('id', editing) : await supabase.from('items').insert(payload)
-    if (result.error) setNotice(result.error.code === '23505' ? 'An item with that name already exists.' : result.error.message.toLowerCase().includes("'demand'") || result.error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 20261027032224_item_demand_stars.sql before saving demand ratings.' : errorMessage(result.error))
-    else { setNotice(editing ? 'Item updated.' : 'Item added.'); setForm(blankForm); setEditing(null); await refresh() }
+    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand, variant_parent_id: form.variant_parent_id || null, variant_color_name: form.variant_color_name.trim() || null, variant_color_hex: form.variant_color_hex || null }
+    let error: { code?: string; message: string } | null = null
+    if (editing) {
+      const result = await supabase.from('items').update(payload).eq('id', editing)
+      error = result.error
+    } else if (hasColorVariants) {
+      const normalized = colorVariants.map(color => ({ name: color.name.trim(), hex: color.hex.toUpperCase() }))
+      if (normalized.some(color => !color.name || !/^#[0-9A-F]{6}$/.test(color.hex)) || new Set(normalized.map(color => color.name.toLowerCase())).size !== normalized.length) {
+        setNotice('Enter a unique name and a valid color for every variant.'); setBusy(false); return
+      }
+      const result = await supabase.rpc('turbo_create_item_with_variants', { p_item: { ...payload, variant_parent_id: null, variant_color_name: null, variant_color_hex: null }, p_variants: normalized })
+      error = result.error
+    } else {
+      const result = await supabase.from('items').insert(payload)
+      error = result.error
+    }
+    if (error) setNotice(error.code === '23505' ? 'An item or color variant with that name already exists.' : error.message.toLowerCase().includes('variant') ? error.message : error.message.toLowerCase().includes("'demand'") || error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 20261027032224_item_demand_stars.sql before saving demand ratings.' : errorMessage(error))
+    else { setNotice(editing ? 'Item updated.' : hasColorVariants ? 'Item and color variants added.' : 'Item added.'); setForm(blankForm); setEditing(null); setHasColorVariants(false); setColorVariants([{ name: '', hex: '#60A5FA' }]); await refresh() }
     setBusy(false)
   }
   async function deleteItem(item: Item) {
@@ -515,9 +560,35 @@ function Admin() {
     }
   }
   function exportCsv() {
-    const rows = [['name','value','image_path','category','rarity','description','created_at','updated_at'], ...items.map(i => [i.name, i.value ?? '', i.image_path ?? '', i.category ?? '', i.rarity ?? '', i.description ?? '', i.created_at, i.updated_at])]
+    const rows = [['name','value','image_path','category','rarity','description','demand','variant_parent_id','variant_color_name','variant_color_hex','created_at','updated_at'], ...items.map(i => [i.name, i.value ?? '', i.image_path ?? '', i.category ?? '', i.rarity ?? '', i.description ?? '', i.demand ?? '', i.variant_parent_id ?? '', i.variant_color_name ?? '', i.variant_color_hex ?? '', i.created_at, i.updated_at])]
     const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = 'turbo-soccer-items.csv'; link.click(); URL.revokeObjectURL(link.href)
+  }
+  function editPromo(entry: PromoCode) {
+    setEditingPromoId(entry.id)
+    setPromoForm({ code: entry.code, reward: entry.reward, is_expired: entry.is_expired })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  async function savePromo(e: FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    const code = promoForm.code.trim().toUpperCase()
+    const reward = promoForm.reward.trim()
+    if (!/^[A-Z0-9_-]{2,32}$/.test(code) || !reward || reward.length > 200) { setNotice('Use a 2–32 character code and a reward description of 1–200 characters.'); return }
+    setBusy(true); setNotice('')
+    const payload = { code, reward, is_expired: promoForm.is_expired, sort_order: editingPromoId ? promoCodes.find(entry => entry.id === editingPromoId)?.sort_order ?? promoCodes.length + 1 : promoCodes.length + 1, updated_at: new Date().toISOString() }
+    const result = editingPromoId ? await supabase.from('promo_codes').update(payload).eq('id', editingPromoId) : await supabase.from('promo_codes').insert(payload)
+    if (result.error) setNotice(result.error.code === '23505' ? 'That promo code already exists.' : errorMessage(result.error))
+    else { setNotice(editingPromoId ? 'Promo code updated.' : 'Promo code added.'); setPromoForm(blankPromoForm); setEditingPromoId(null); await refresh() }
+    setBusy(false)
+  }
+  async function deletePromo(entry: PromoCode) {
+    if (!supabase || !window.confirm(`Delete promo code ${entry.code}?`)) return
+    setBusy(true)
+    const { error } = await supabase.from('promo_codes').delete().eq('id', entry.id)
+    if (error) setNotice(errorMessage(error))
+    else { if (editingPromoId === entry.id) { setEditingPromoId(null); setPromoForm(blankPromoForm) }; setNotice(`${entry.code} deleted.`); await refresh() }
+    setBusy(false)
   }
 
   if (checking) return <AdminShell><div className="admin-loading"><div className="spinner" /> Checking secure admin access…</div></AdminShell>
@@ -534,15 +605,19 @@ function Admin() {
   return <AdminShell><div className="admin-dashboard"><header className="admin-header"><div><div className="eyebrow section-eyebrow">TURBO SOCCER · ADMIN</div><h1>{profile?.role === 'OWNER' ? 'Owner control room' : 'Your item list'}</h1><p>Choose what you want to manage.</p></div><div className="admin-user"><span className="admin-avatar">{(profile?.display_name ?? session.email ?? profile?.username ?? 'A').slice(0, 1).toUpperCase()}</span><div><b>{profile?.display_name ?? session.email ?? profile?.username}</b><small><span className="count-dot" /> {profile?.role === 'OWNER' ? 'OWNER' : profile?.title ?? 'ADMIN'}</small></div><button className="icon-button" onClick={() => void signOut()} title="Sign out"><LogOut size={17} /></button></div></header>
     {notice && <div className={`admin-notice ${/could not|error|must|already|use a/i.test(notice) ? 'error' : ''}`} role="status"><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15} /></button></div>}
     <nav className="admin-main-menu" aria-label="Admin menu">
-      <button type="button" className={`admin-menu-action ${adminSection === 'publish' ? 'active' : ''}`} aria-pressed={adminSection === 'publish'} onClick={() => setAdminSection('publish')}><PackagePlus size={20} /><span>Publier une offre<small>Objets et valeurs</small></span></button>
-      <a className="admin-menu-action admin-menu-site" href="/"><Globe2 size={20} /><span>Voir le site<small>Catalogue public</small></span><ExternalLink size={14} /></a>
-      {profile?.role === 'OWNER' && <button type="button" className={`admin-menu-action ${adminSection === 'accounts' ? 'active' : ''}`} aria-pressed={adminSection === 'accounts'} onClick={() => setAdminSection('accounts')}><UsersRound size={20} /><span>Comptes admins<small>Réservé au owner</small></span></button>}
-      <button type="button" className={`admin-menu-action ${adminSection === 'profile' ? 'active' : ''}`} aria-pressed={adminSection === 'profile'} onClick={() => setAdminSection('profile')}><UserRound size={20} /><span>Mon profil<small>Nom et mot de passe</small></span></button>
+      <button type="button" className={`admin-menu-action ${adminSection === 'publish' ? 'active' : ''}`} aria-pressed={adminSection === 'publish'} onClick={() => setAdminSection('publish')}><PackagePlus size={20} /><span>Manage items<small>Catalog and values</small></span></button>
+      <a className="admin-menu-action admin-menu-site" href="/"><Globe2 size={20} /><span>View the site<small>Public catalog</small></span><ExternalLink size={14} /></a>
+      <button type="button" className={`admin-menu-action ${adminSection === 'codes' ? 'active' : ''}`} aria-pressed={adminSection === 'codes'} onClick={() => setAdminSection('codes')}><TicketPercent size={20} /><span>Promo codes<small>Public codes and status</small></span></button>
+      {profile?.role === 'OWNER' && <button type="button" className={`admin-menu-action ${adminSection === 'accounts' ? 'active' : ''}`} aria-pressed={adminSection === 'accounts'} onClick={() => setAdminSection('accounts')}><UsersRound size={20} /><span>Admin accounts<small>Owner only</small></span></button>}
+      <button type="button" className={`admin-menu-action ${adminSection === 'profile' ? 'active' : ''}`} aria-pressed={adminSection === 'profile'} onClick={() => setAdminSection('profile')}><UserRound size={20} /><span>My profile<small>Name and password</small></span></button>
     </nav>
-    {adminSection === 'profile' && <section className="admin-section-content" aria-label="Mon profil"><AdminSelfSettings profile={profile!} onSaved={() => void refresh()} /></section>}
-    {adminSection === 'accounts' && profile?.role === 'OWNER' && <section className="admin-section-content" aria-label="Gestion des comptes admin"><AdminManagement /></section>}
-    {adminSection === 'publish' && <div className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">CATALOGUE</span><h2>Publier une offre</h2><p>Ajoute un objet ou mets à jour une valeur déjà publiée.</p></div><div className="admin-layout"><section className="admin-panel editor-panel"><div className="panel-heading"><div><span className="panel-kicker">{editing ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{editing ? 'Update details' : 'Add to the list'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(blankForm) }}>Cancel edit</button>}</div>
+    {adminSection === 'profile' && <section className="admin-section-content" aria-label="My profile"><AdminSelfSettings profile={profile!} onSaved={() => void refresh()} /></section>}
+    {adminSection === 'accounts' && profile?.role === 'OWNER' && <section className="admin-section-content" aria-label="Admin account management"><AdminManagement /></section>}
+    {adminSection === 'codes' && <section className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">HOMEPAGE CONTENT</span><h2>Manage promo codes</h2><p>Update the public code list and mark expired offers.</p></div><section className="admin-panel promo-manager"><form className="promo-manager-form" onSubmit={savePromo}><label>Code<input required maxLength={32} pattern="[A-Za-z0-9_-]{2,32}" placeholder="e.g. 85KLIKES" value={promoForm.code} onChange={event => setPromoForm({ ...promoForm, code: event.target.value.toUpperCase() })} /></label><label>Reward description<input required maxLength={200} placeholder="Describe what the code gives" value={promoForm.reward} onChange={event => setPromoForm({ ...promoForm, reward: event.target.value })} /></label><label className="promo-expired-toggle"><input type="checkbox" checked={promoForm.is_expired} onChange={event => setPromoForm({ ...promoForm, is_expired: event.target.checked })} /> Mark as expired</label><button className="primary-button" disabled={busy}>{editingPromoId ? 'Save code' : 'Add code'} <Check size={15} /></button>{editingPromoId && <button type="button" className="secondary-button" onClick={() => { setEditingPromoId(null); setPromoForm(blankPromoForm) }}>Cancel</button>}</form><div className="promo-manager-list">{promoCodes.map(entry => <article className="promo-manager-row" key={entry.id}><span className="promo-manager-status" aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span><div><b>{entry.code}</b><small>{entry.reward}</small></div><span className={`promo-status-chip${entry.is_expired ? ' expired' : ''}`}>{entry.is_expired ? 'Expired' : 'Available'}</span><button className="row-action" onClick={() => editPromo(entry)}>Edit</button><button className="row-delete" aria-label={`Delete ${entry.code}`} onClick={() => void deletePromo(entry)}><Trash2 size={15} /></button></article>)}</div>{!promoCodes.length && <p className="promo-manager-empty">No promo codes yet. Add the first one above.</p>}</section></section>}
+    {adminSection === 'publish' && <div className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">CATALOG</span><h2>Manage items</h2><p>Add an item or update a published value.</p></div><div className="admin-layout"><section className="admin-panel editor-panel"><div className="panel-heading"><div><span className="panel-kicker">{editing ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{editing ? 'Update details' : 'Add to the list'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(blankForm) }}>Cancel edit</button>}</div>
       <form onSubmit={saveItem} className="admin-form"><label>Item name <span className="required-star">*</span><input maxLength={100} required placeholder="Enter the official name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label><div className="form-two"><label>Value in coins <small>whole numbers</small><input type="number" min="0" step="1" placeholder="Leave blank if unknown" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></label><label>Category <small>optional</small><input list="category-options" maxLength={60} placeholder="e.g. Ball" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /><datalist id="category-options">{CATEGORY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label></div><div className="form-two"><label>Rarity <small>optional</small><input list="rarity-options" maxLength={60} placeholder="e.g. Limited" value={form.rarity} onChange={e => setForm({ ...form, rarity: e.target.value })} /><datalist id="rarity-options">{RARITY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label><label>Image <small>optional</small><span className="image-status">{form.image_path ? 'Image selected' : 'No image selected'}</span></label></div>
+      {!editing && <div className="variant-setup"><label className="variant-toggle"><input type="checkbox" checked={hasColorVariants} onChange={event => setHasColorVariants(event.target.checked)} /><span><b>This item has color variants</b><small>Create up to 15 color versions using this item’s image.</small></span></label>{hasColorVariants && <div className="variant-draft-list">{colorVariants.map((color, index) => <div className="variant-draft-row" key={index}><span className="variant-draft-number">{index + 1}</span><label>Color name<input required maxLength={32} placeholder="e.g. Sky Blue" value={color.name} onChange={event => setColorVariants(current => current.map((entry, i) => i === index ? { ...entry, name: event.target.value } : entry))} /></label><label>Color<input type="color" value={color.hex} onChange={event => setColorVariants(current => current.map((entry, i) => i === index ? { ...entry, hex: event.target.value } : entry))} /></label>{colorVariants.length > 1 && <button type="button" className="row-delete" aria-label={`Remove color ${color.name || index + 1}`} onClick={() => setColorVariants(current => current.filter((_, i) => i !== index))}><X size={15} /></button>}</div>)}<button type="button" className="secondary-button add-color-variant" disabled={colorVariants.length >= 15} onClick={() => setColorVariants(current => [...current, { name: '', hex: '#60A5FA' }])}><Plus size={15} /> Add color ({colorVariants.length}/15)</button></div>}</div>}
+      {editing && form.variant_parent_id && <div className="variant-edit-fields"><span className="panel-kicker">COLOR VARIANT</span><label>Variant name<input required maxLength={32} value={form.variant_color_name} onChange={event => setForm({ ...form, variant_color_name: event.target.value })} /></label><label>Color<input type="color" value={form.variant_color_hex || '#60A5FA'} onChange={event => setForm({ ...form, variant_color_hex: event.target.value.toUpperCase() })} /></label><small>This version is managed as its own item. Its image comes from the original item.</small></div>}
       <div className="image-picker">
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
         {form.image_path && <div className="image-current-preview"><div className="image-current-art">{selectedImage ? <img src={selectedImage} alt="Selected item" /> : <ImagePlus size={24} />}</div><div className="image-current-details"><b>Selected image</b><small>{selectedUpload ? selectedUpload.split('/').pop() : form.image_path.split('/').pop()}</small><div className="image-current-actions"><button type="button" className="secondary-button" onClick={() => setForm(current => ({ ...current, image_path: '' }))}><X size={14} /> Remove from item</button>{selectedUpload && <button type="button" className="delete-image-button" disabled={busy} onClick={() => void deleteUploadedImage()}><Trash2 size={14} /> Delete uploaded photo</button>}</div></div></div>}
@@ -553,9 +628,9 @@ function Admin() {
       </div>
       <div className="demand-field"><span className="demand-label">Community demand</span><small>Optional · saved with this item</small><DemandStars rating={form.demand === '' ? null : Number(form.demand)} interactive onChange={rating => setForm(current => ({ ...current, demand: rating == null ? '' : String(rating) }))} /></div>
       <label>Description <small>optional</small><textarea maxLength={2000} rows={3} placeholder="Add item details" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-      <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}</small>{form.rarity && <span className={`rarity-chip ${rarityTone(form.rarity)}`}>{form.rarity}</span>}</div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
+      <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}{form.variant_color_hex && <span className="variant-color-band" style={{ '--variant-color': form.variant_color_hex } as React.CSSProperties} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}</small>{form.rarity && <span className={`rarity-chip ${rarityTone(form.rarity)}`}>{form.rarity}</span>}</div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
       <button className="primary-button full-button" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add item'} <Check size={16} /></button></form></section>
-    <section className="admin-panel catalogue-panel"><div className="panel-heading"><div><span className="panel-kicker">LIVE CATALOGUE</span><h2>Published items <span className="catalogue-total">{items.length}</span></h2></div><button className="export-button" onClick={exportCsv} disabled={!items.length}>Export CSV</button></div><label className="search-box admin-search"><Search size={16} /><input placeholder="Find an item..." value={filter} onChange={e => setFilter(e.target.value)} /></label><div className="catalogue-list">{adminItems.length ? adminItems.map(item => <div className="catalogue-row" key={item.id}><div className="catalogue-thumb">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}</div><div className="catalogue-name"><b>{item.name}</b><small>{item.category || 'No category'}</small>{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div><CoinValue value={item.value} compact className="catalogue-value" /><button className="row-action" onClick={() => editItem(item)} aria-label={`Edit ${item.name}`}>Edit</button><button className="row-delete" onClick={() => void deleteItem(item)} aria-label={`Delete ${item.name}`}><Trash2 size={15} /></button></div>) : <div className="catalogue-empty"><BrandMark /><b>{filter ? 'No items match' : 'No items added yet'}</b><span>{filter ? 'Try another search.' : 'Add your first item to start the catalogue.'}</span></div>}</div><div className="catalogue-footer"><span><span className="count-dot" /> Changes publish automatically</span><a href="/">View public site <ExternalLink size={13} /></a></div></section></div>
+    <section className="admin-panel catalogue-panel"><div className="panel-heading"><div><span className="panel-kicker">LIVE CATALOGUE</span><h2>Published items <span className="catalogue-total">{items.length}</span></h2></div><button className="export-button" onClick={exportCsv} disabled={!items.length}>Export CSV</button></div><label className="search-box admin-search"><Search size={16} /><input placeholder="Find an item..." value={filter} onChange={e => setFilter(e.target.value)} /></label><div className="catalogue-list">{adminItems.length ? adminItems.map(item => <div className="catalogue-row" key={item.id}><div className="catalogue-thumb">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}{item.variant_color_hex && <span className="variant-color-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} />}</div><div className="catalogue-name"><b>{item.name}</b><small>{item.variant_color_name ? `${item.category || 'No category'} · ${item.variant_color_name}` : item.category || 'No category'}</small>{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div><CoinValue value={item.value} compact className="catalogue-value" /><button className="row-action" onClick={() => editItem(item)} aria-label={`Edit ${item.name}`}>Edit</button><button className="row-delete" onClick={() => void deleteItem(item)} aria-label={`Delete ${item.name}`}><Trash2 size={15} /></button></div>) : <div className="catalogue-empty"><BrandMark /><b>{filter ? 'No items match' : 'No items added yet'}</b><span>{filter ? 'Try another search.' : 'Add your first item to start the catalogue.'}</span></div>}</div><div className="catalogue-footer"><span><span className="count-dot" /> Changes publish automatically</span><a href="/">View public site <ExternalLink size={13} /></a></div></section></div>
     <div className="admin-security-note"><ShieldCheck size={16} /><span>Writes are enforced by Supabase Row Level Security. Only accounts listed in the private admin allowlist can change catalogue data.</span></div></div>}
   </div></AdminShell>
 }
@@ -565,8 +640,6 @@ function AdminShell({ children }: { children: React.ReactNode }) { return <div c
 function SetupPanel() {
   return <div className="setup-panel"><div className="login-emblem"><LockKeyhole size={21} /></div><div className="eyebrow section-eyebrow">EXISTING SUPABASE PROJECT</div><h1>Connect the<br />current database.</h1><p>Use the same project as the published catalogue so your existing OWNER login and item data stay connected.</p><ol><li>Back up the database and verify the OWNER UUID before applying migrations 002, 003, and 004 in order.</li><li>Set the existing project URL and public anon key in <code>.env</code>.</li><li>Set the Pages Functions server key and rate-limit salt as private Cloudflare secrets.</li><li>Provision the ten initial admin accounts with <code>scripts/provision-admins.ps1</code>.</li></ol><a className="secondary-button" href="/">Back to public site <ChevronRight size={15} /></a></div>
 }
-
-function formatValue(value: number | null) { return value === null || value === undefined ? 'Not set' : `${new Intl.NumberFormat('en-US').format(value)} ${value === 1 ? 'coin' : 'coins'}` }
 
 export default App
 
