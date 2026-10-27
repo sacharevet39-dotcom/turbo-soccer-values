@@ -577,3 +577,17 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .search-box:focus-within { box-shadow: 0 0 0 3px #ffffff0a; }
 .category-chip:active, .sort-button:active, .primary-button:active, .secondary-button:active { transform: scale(.98); }
 .item-card:focus-within { border-color: #858585; }
+
+/* On narrower screens, place both hero artworks together below the copy. */
+@media (max-width: 1250px) {
+  .hero { min-height: clamp(320px, 31vw, 370px); }
+  .hero-copy { position: relative; z-index: 2; align-self: flex-start; }
+  .hero-feature-art { display: block; top: auto; bottom: 12px; left: 0; width: min(420px, 48%); transform: none; }
+  .hero-art { top: auto; bottom: 12px; right: 0; width: 48%; height: clamp(100px, 14vw, 160px); opacity: 1; transform: none; }
+  .hero-car-frame { width: 100%; height: 100%; }
+  .art-stat { display: none; }
+}
+@media (max-width: 600px) {
+  .hero { min-height: 340px; }
+  .hero-copy { padding: 23px 0; }
+}
