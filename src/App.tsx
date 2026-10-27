@@ -615,7 +615,8 @@ function Admin() {
     const reward = promoForm.reward.trim()
     if (!/^[A-Z0-9_-]{2,32}$/.test(code) || !reward || reward.length > 200) { setNotice('Use a 2–32 character code and a reward description of 1–200 characters.'); return }
     setBusy(true); setNotice('')
-    const payload = { code, reward, is_expired: promoForm.is_expired, sort_order: editingPromoId ? promoCodes.find(entry => entry.id === editingPromoId)?.sort_order ?? promoCodes.length + 1 : promoCodes.length + 1, updated_at: new Date().toISOString() }
+    const newCodeSortOrder = Math.min(0, ...promoCodes.map(entry => entry.sort_order)) - 1
+    const payload = { code, reward, is_expired: promoForm.is_expired, sort_order: editingPromoId ? promoCodes.find(entry => entry.id === editingPromoId)?.sort_order ?? newCodeSortOrder : newCodeSortOrder, updated_at: new Date().toISOString() }
     const result = editingPromoId ? await supabase.from('promo_codes').update(payload).eq('id', editingPromoId) : await supabase.from('promo_codes').insert(payload)
     if (result.error) setNotice(result.error.code === '23505' ? 'That promo code already exists.' : errorMessage(result.error))
     else { setNotice(editingPromoId ? 'Promo code updated.' : 'Promo code added.'); setPromoForm(blankPromoForm); setEditingPromoId(null); await refresh() }
