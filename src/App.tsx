@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, ExternalLink, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
-  Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, UserRound, UsersRound, X,
+  Menu, Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
 import { configured, errorMessage, itemImage, supabase, type Item } from './lib/supabase'
 import { sourceImages } from './catalogImages'
@@ -46,6 +46,26 @@ function App() {
   const itemRoute = window.location.pathname.match(/^\/item\/([^/]+)\/?$/)
   if (itemRoute) return <ItemDetailsPage itemId={decodeURIComponent(itemRoute[1])} />
   return <PublicApp />
+}
+
+function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onViewChange?: (view: View) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEffect(() => {
+    if (!menuOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
+  const closeMenu = () => setMenuOpen(false)
+  return <header className="topbar site-topbar">
+    <a className="brand" href="/" aria-label="Turbo Soccer Values home" onClick={closeMenu}><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a>
+    <button type="button" className={`mobile-menu-toggle ${menuOpen ? 'active' : ''}`} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="site-navigation" onClick={() => setMenuOpen(open => !open)}>{menuOpen ? <X size={19} /> : <Menu size={19} />}<span>{menuOpen ? 'Close' : 'Menu'}</span></button>
+    <nav id="site-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
+      {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
+      {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
+    </nav>
+    <div className="top-actions"><OnlineCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
+  </header>
 }
 
 function PublicApp() {
@@ -100,14 +120,7 @@ function PublicApp() {
   useEffect(() => setPage(1), [search, category, sort])
 
   return <div className="app-shell">
-    <header className="topbar">
-      <a className="brand" href="/" aria-label="Turbo Soccer Values home"><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a>
-      <nav className="main-nav" aria-label="Main navigation">
-        <button className={view === 'values' ? 'nav-link active' : 'nav-link'} onClick={() => setView('values')}>Value list</button>
-        <button className={view === 'trade' ? 'nav-link active' : 'nav-link'} onClick={() => setView('trade')}>Trade calculator</button>
-      </nav>
-      <div className="top-actions"><OnlineCount /><a className="admin-link" href="/admin"><LockKeyhole size={15} /> Admin</a></div>
-    </header>
+    <SiteNav activeView={view} onViewChange={setView} />
     <main>
       <section className="hero">
         <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> ITEM VALUES</div>
@@ -116,7 +129,7 @@ function PublicApp() {
           <div className="hero-meta"><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
         </div>
         <div className="hero-feature-art" aria-hidden="true">
-          <img src="/brand/turbo-soccer-feature.png" alt="" />
+          <img src="/brand/turbo-soccer-feature.jpg" alt="" />
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-car-frame">
@@ -261,7 +274,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
     try { await navigator.clipboard.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1800) }
     catch { setError('Could not copy the item link. Copy it from your browser address bar.') }
   }
-  return <div className="app-shell"><header className="topbar"><a className="brand" href="/" aria-label="Turbo Soccer Values home"><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a><nav className="main-nav"><a className="nav-link" href="/">Value list</a><a className="nav-link" href="/?tab=trade">Trade calculator</a></nav><div className="top-actions"><a className="admin-link" href="/admin"><LockKeyhole size={15} /> Admin</a></div></header>
+  return <div className="app-shell"><SiteNav activeView="values" />
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
       <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} />)}</div></section>}
@@ -547,7 +560,7 @@ function Admin() {
   </div></AdminShell>
 }
 
-function AdminShell({ children }: { children: React.ReactNode }) { return <div className="admin-shell"><header className="topbar admin-topbar"><a className="brand" href="/"><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a><a className="admin-back" href="/"><ChevronLeft size={15} /> Public site</a></header>{children}</div> }
+function AdminShell({ children }: { children: React.ReactNode }) { return <div className="admin-shell"><SiteNav activeView="admin" />{children}</div> }
 
 function SetupPanel() {
   return <div className="setup-panel"><div className="login-emblem"><LockKeyhole size={21} /></div><div className="eyebrow section-eyebrow">EXISTING SUPABASE PROJECT</div><h1>Connect the<br />current database.</h1><p>Use the same project as the published catalogue so your existing OWNER login and item data stay connected.</p><ol><li>Back up the database and verify the OWNER UUID before applying migrations 002, 003, and 004 in order.</li><li>Set the existing project URL and public anon key in <code>.env</code>.</li><li>Set the Pages Functions server key and rate-limit salt as private Cloudflare secrets.</li><li>Provision the ten initial admin accounts with <code>scripts/provision-admins.ps1</code>.</li></ol><a className="secondary-button" href="/">Back to public site <ChevronRight size={15} /></a></div>

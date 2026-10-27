@@ -526,7 +526,7 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 }
 
 /* The soccer banner sits beside the copy; the transparent item montage stays on the right. */
-.hero-feature-art { position: absolute; z-index: 1; top: 50%; left: 28%; width: min(420px, 22vw); aspect-ratio: 463 / 223; overflow: hidden; border: 1px solid #424242; border-radius: 12px; background: #111; box-shadow: 0 14px 36px #0008; transform: translateY(-50%) rotate(-1deg); animation: car-float 8s ease-in-out infinite; }
+.hero-feature-art { position: absolute; z-index: 1; top: 50%; left: 28%; width: min(420px, 22vw); aspect-ratio: 1024 / 384; overflow: hidden; border: 1px solid #424242; border-radius: 12px; background: #111; box-shadow: 0 14px 36px #0008; transform: translateY(-50%) rotate(-1deg); animation: car-float 8s ease-in-out infinite; }
 .hero-feature-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .hero-art { right: 2%; width: 48%; opacity: 1; }
 .hero-car-frame { width: min(590px, 92%); height: clamp(190px, 21vw, 270px); overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; animation: car-float 7s ease-in-out infinite; }
@@ -630,7 +630,7 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   position: relative;
   inset: auto;
   width: 100%;
-  aspect-ratio: 463 / 223;
+  aspect-ratio: 1024 / 384;
   transform: none;
   animation: none;
 }
@@ -746,10 +746,55 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .hero-meta { margin-top: 14px; }
   .hero-meta > a { min-height: 36px; padding: 7px 9px; font-size: 9px; }
   .hero-feature-art { width: 100%; }
+  .hero-feature-art { aspect-ratio: 2.15; }
   .hero-art { height: auto; aspect-ratio: 1.45; }
   .hero-car-frame { height: 100%; }
   .image-options { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 300px; }
   .image-option-delete { width: 32px; height: 32px; }
   .demand-stars.interactive { gap: 6px; }
   .demand-stars.interactive > button { width: 39px; height: 39px; }
+}
+
+/* Shared animated navigation used on the public site, item pages, and admin. */
+.site-topbar {
+  isolation: isolate;
+  background: #242424ed;
+  backdrop-filter: blur(14px);
+  animation: navbar-arrive .38s cubic-bezier(.2,.7,.25,1) both;
+}
+.site-topbar .brand-logo { transition: transform .28s cubic-bezier(.2,.8,.2,1), filter .28s ease; }
+.site-topbar .brand:hover .brand-logo { transform: scale(1.06) rotate(-2deg); filter: drop-shadow(0 3px 8px #ffffff2b); }
+.site-topbar .nav-link { transition: color .18s ease, transform .18s ease; }
+.site-topbar .nav-link:hover { transform: translateY(-2px); }
+.site-topbar .nav-link:after { transition: transform .24s cubic-bezier(.2,.8,.2,1), background-color .18s ease; }
+.site-topbar .admin-link { transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+.site-topbar .admin-link:hover { transform: translateY(-2px); box-shadow: 0 5px 14px #0005; }
+.site-topbar .admin-link.active { border-color: #737373; background: #424242; }
+.mobile-menu-toggle { display: none; }
+@keyframes navbar-arrive { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes nav-item-enter { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 760px) {
+  .topbar.site-topbar { position: sticky; gap: 10px; padding-inline: 14px; }
+  .site-topbar .mobile-menu-toggle { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 9px; border: 1px solid #484848; border-radius: 7px; background: #303030; color: #eee; font-size: 10px; font-weight: 700; cursor: pointer; }
+  .mobile-menu-toggle svg { transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+  .mobile-menu-toggle.active svg { transform: rotate(90deg); }
+  .site-topbar .main-nav { position: absolute; top: calc(100% + 6px); left: 12px; right: 12px; z-index: 20; height: auto; display: grid; gap: 4px; padding: 8px; border: 1px solid #484848; border-radius: 10px; background: #242424f5; box-shadow: 0 14px 35px #0009; opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.985); transform-origin: top center; transition: opacity .18s ease, transform .22s cubic-bezier(.2,.8,.2,1), visibility .18s; pointer-events: none; }
+  .site-topbar .main-nav.open { opacity: 1; visibility: visible; transform: none; pointer-events: auto; }
+  .site-topbar .nav-link { width: 100%; min-height: 42px; display: flex; align-items: center; padding: 0 13px; border-radius: 6px; text-align: left; font-size: 12px; letter-spacing: .03em; }
+  .site-topbar .nav-link.active { background: #333; }
+  .site-topbar .nav-link:after { left: 13px; right: auto; bottom: 4px; width: 28px; }
+  .site-topbar .main-nav.open .nav-link { animation: nav-item-enter .22s both; }
+  .site-topbar .main-nav.open .nav-link:nth-child(2) { animation-delay: .035s; }
+  .site-topbar .top-actions { margin-left: auto; gap: 8px; }
+}
+@media (max-width: 390px) {
+  .site-topbar .brand-logo { width: 82px; height: 48px; }
+  .site-topbar .brand-tagline { display: none; }
+  .site-topbar .mobile-menu-toggle { gap: 4px; padding-inline: 7px; }
+  .site-topbar .top-actions .live-pill { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-topbar, .site-topbar .main-nav.open .nav-link { animation: none; }
+  .site-topbar .brand-logo, .site-topbar .nav-link, .site-topbar .nav-link:after, .site-topbar .admin-link, .mobile-menu-toggle svg, .site-topbar .main-nav { transition: none; }
 }
