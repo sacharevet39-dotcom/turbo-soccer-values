@@ -109,9 +109,12 @@ function PublicApp() {
           <p>Check item values, then compare both sides before you trade.</p>
           <div className="hero-meta"><span>Values shared by the community</span><span className="meta-separator" /><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
         </div>
+        <div className="hero-feature-art" aria-hidden="true">
+          <img src="/brand/turbo-soccer-feature.png" alt="" />
+        </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-car-frame">
-            <img src="/brand/octane-fennec.jpg" alt="" />
+            <img src="/brand/turbo-soccer-hero.png" alt="" />
           </div>
           <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
           <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
