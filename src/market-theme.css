@@ -807,3 +807,48 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .site-topbar, .site-topbar .main-nav.open .nav-link { animation: none; }
   .site-topbar .brand-logo, .site-topbar .nav-link, .site-topbar .nav-link:after, .site-topbar .admin-link, .mobile-menu-toggle svg, .site-topbar .main-nav { transition: none; }
 }
+
+.card-price-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 25px; }
+.price-trend { display: inline-flex; align-items: center; gap: 5px; flex: none; color: #b0b0b0; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.price-trend-up { color: #55d889; }
+.price-trend-down { color: #ff6868; }
+.price-trend-stable { color: #a4a4a4; }
+.price-trend.compact { gap: 2px; font-size: 9px; }
+.detail-card > .price-trend { margin-top: 5px; }
+.price-history-panel { margin-top: 26px; padding: 23px 25px 16px; overflow: hidden; border: 1px solid #3c3c3c; border-radius: 15px; background: #191919; box-shadow: 0 12px 32px #0002; }
+.price-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.price-history-heading h2 { margin: 6px 0 3px; color: #f3f3f3; font: 800 25px/1.1 var(--display); }
+.price-history-heading p { margin: 0; color: #929292; font-size: 12px; }
+.history-point-count { color: #a7a7a7; font-size: 11px; white-space: nowrap; }
+.history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 14px 4px 17px; border-bottom: 1px solid #2b2b2b; }
+.history-summary > div { display: grid; gap: 6px; }
+.history-summary small { color: #858585; font-size: 9px; font-weight: 700; letter-spacing: .11em; }
+.history-summary b { color: #f1f1f1; font-size: 15px; }
+.history-summary .history-up { color: #55d889; }
+.history-summary .history-down { color: #ff6868; }
+.history-summary .history-stable { color: #aaa; }
+.price-chart-wrap { width: 100%; min-height: 270px; padding: 14px 0 4px; }
+.price-history-chart { display: block; width: 100%; height: auto; min-height: 210px; overflow: visible; }
+.price-chart-gridline { stroke: #ffffff10; stroke-width: 1; }
+.price-chart-label { fill: #969696; font: 11px ui-sans-serif, system-ui, sans-serif; }
+.price-chart-line { fill: none; stroke: #58d68d; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.price-chart-point { fill: #64df98; stroke: #191919; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.price-chart-empty { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #ddd; text-align: center; }
+.price-chart-empty-line { width: min(400px, 70%); height: 1px; background: #999; box-shadow: 0 0 10px #aaa4; }
+.price-chart-empty b { font-size: 13px; }
+.price-chart-empty small { color: #929292; font-size: 11px; }
+.price-history-footer { display: flex; align-items: center; gap: 18px; min-height: 39px; padding-top: 9px; border-top: 1px solid #292929; color: #838383; font-size: 10px; }
+.price-history-footer > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: #b8b8b8; font-weight: 700; }
+.price-history-footer > span:first-child i { width: 8px; height: 8px; border-radius: 50%; background: #58d68d; }
+.price-history-footer .price-trend { margin-left: auto; }
+
+@media (max-width: 700px) {
+  .price-history-panel { margin-top: 16px; padding: 17px 13px 11px; border-radius: 12px; }
+  .price-history-heading h2 { font-size: 22px; }
+  .history-summary { gap: 8px; padding: 12px 0; }
+  .history-summary b { font-size: 13px; }
+  .price-chart-wrap { min-height: 220px; padding-top: 9px; }
+  .price-history-chart { min-height: 190px; }
+  .price-chart-label { font-size: 13px; }
+  .price-history-footer { gap: 10px; font-size: 9px; }
+}

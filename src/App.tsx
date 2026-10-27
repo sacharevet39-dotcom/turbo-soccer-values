@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, ExternalLink, Eye, Globe2, ImagePlus, LockKeyhole, LogOut, Minus, PackagePlus, Plus,
-  Menu, Search, ShieldCheck, SlidersHorizontal, Star, TicketPercent, Trash2, Upload, UserRound, UsersRound, X,
+  Menu, Search, ShieldCheck, SlidersHorizontal, Star, TicketPercent, Trash2, TrendingDown, TrendingUp, Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
-import { configured, errorMessage, itemImage, supabase, type Item, type PromoCode } from './lib/supabase'
+import { configured, errorMessage, itemImage, supabase, type Item, type PricePoint, type PriceTrend, type PromoCode } from './lib/supabase'
 import { sourceImages } from './catalogImages'
 import { AdminManagement, AdminSelfSettings } from './admin/AdminManagement'
 import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../shared/password-policy.js'
@@ -133,6 +133,7 @@ function PublicApp() {
     return tab === 'trade' || tab === 'codes' ? tab : 'values'
   })
   const [items, setItems] = useState<Item[]>([])
+  const [priceTrends, setPriceTrends] = useState<Record<string, PriceTrend>>({})
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -150,6 +151,8 @@ function PublicApp() {
     const { data, error } = await supabase.from('items').select('*').order('name').range(0, 999)
     if (error) setLoadError(errorMessage(error))
     else { setItems((data ?? []) as Item[]); setLoadError('') }
+    const trendResult = await supabase.from('item_price_trends').select('item_id,current_value,previous_value')
+    if (!trendResult.error) setPriceTrends(Object.fromEntries(((trendResult.data ?? []) as PriceTrend[]).map(trend => [trend.item_id, trend])))
     const promoResult = await supabase.from('promo_codes').select('*').order('is_expired', { ascending: true }).order('sort_order').order('code')
     if (!promoResult.error) setPromoCodes((promoResult.data ?? []) as PromoCode[])
     setLoading(false)
@@ -214,7 +217,7 @@ function PublicApp() {
           </div>
           <div className="category-chips" aria-label="Quick category filters"><button className={category === 'all' ? 'category-chip active' : 'category-chip'} onClick={() => setCategory('all')}>All items</button>{quickCategories.map(c => <button key={c} className={category === c ? 'category-chip active' : 'category-chip'} onClick={() => setCategory(category === c ? 'all' : c)}>{c}</button>)}</div>
           {loading ? <div className="loading-grid">{Array.from({ length: 8 }, (_, i) => <div className="skeleton-card" key={i}><div /><span /><b /></div>)}</div> : pageItems.length ? <>
-            <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} key={item.id} />)}</div>
+            <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} trend={priceTrends[item.id]} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
         </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
@@ -330,13 +333,64 @@ function SetupNotice() {
   return <div className="setup-notice"><div className="notice-icon"><CircleHelp size={18} /></div><div><b>Database setup is needed</b><p>The site is ready, but the public list will appear after Supabase is connected and the first items are added in the admin panel.</p></div><a href="/admin">Open admin setup <ChevronRight size={14} /></a></div>
 }
 
-function ItemCard({ item }: { item: Item }) {
+function ItemCard({ item, trend }: { item: Item; trend?: PriceTrend }) {
   const image = itemImage(item.image_path)
   return <a className="item-card" href={`/item/${item.id}`} aria-label={`Open ${item.name} details`}>
     <div className="item-card-heading"><h3>{item.name}</h3>{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}</div>
     <div className="card-visual">{image ? <div className="card-item-art"><img src={image} alt={item.name} loading="lazy" />{item.variant_color_hex && <span className="variant-color-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}<span className="view-details">Details <ChevronRight size={13} /></span></div>
-    <div className="card-info"><div className="item-subline"><span>{item.category || 'Uncategorized'}</span><span className="card-value-label">VALUE</span></div><CoinValue value={item.value} compact className="card-value" /><div className="card-demand"><span>DEMAND</span><DemandStars rating={item.demand} /></div></div>
+    <div className="card-info"><div className="item-subline"><span>{item.category || 'Uncategorized'}</span><span className="card-value-label">VALUE</span></div><div className="card-price-line"><CoinValue value={item.value} compact className="card-value" /><PriceTrendIndicator trend={trend} compact /></div><div className="card-demand"><span>DEMAND</span><DemandStars rating={item.demand} /></div></div>
   </a>
+}
+
+function PriceTrendIndicator({ trend, compact = false }: { trend?: PriceTrend | null; compact?: boolean }) {
+  const current = trend?.current_value
+  const previous = trend?.previous_value
+  const direction = current == null || previous == null || current === previous ? 'stable' : current > previous ? 'up' : 'down'
+  const Icon = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : Minus
+  const label = direction === 'stable' ? 'Stable' : direction === 'up' ? 'Rising' : 'Falling'
+  const change = current != null && previous != null && previous !== 0 ? Math.abs((current - previous) / previous * 100) : null
+  return <span className={`price-trend price-trend-${direction}${compact ? ' compact' : ''}`} aria-label={change == null ? `Price ${label.toLowerCase()}` : `Price ${label.toLowerCase()} ${change.toFixed(1)} percent`} title={change == null ? `Price ${label.toLowerCase()}` : `${label} ${change.toFixed(1)}% since the previous value`}><Icon size={compact ? 14 : 17} strokeWidth={2.4} /><span>{compact && change != null && direction !== 'stable' ? `${change.toFixed(0)}%` : label}</span></span>
+}
+
+function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[] }) {
+  const width = 1000, height = 300, left = 62, right = 24, top = 22, bottom = 43
+  const plotWidth = width - left - right, plotHeight = height - top - bottom
+  const points = history.filter(point => Number.isFinite(point.value)).slice(-500)
+  const values = points.map(point => point.value)
+  const low = values.length ? Math.min(...values) : item.value ?? 0
+  const high = values.length ? Math.max(...values) : item.value ?? 1
+  const padding = Math.max((high - low) * .12, high * .035, 1)
+  const min = Math.max(0, low - padding), max = high + padding
+  const x = (index: number) => points.length < 2 ? left + plotWidth / 2 : left + index / (points.length - 1) * plotWidth
+  const y = (value: number) => top + (max === min ? .5 : (max - value) / (max - min)) * plotHeight
+  const line = points.reduce((path, point, index) => {
+    if (index === 0) return `M ${x(index).toFixed(1)} ${y(point.value).toFixed(1)}`
+    const middle = (x(index - 1) + x(index)) / 2
+    return `${path} C ${middle.toFixed(1)} ${y(points[index - 1].value).toFixed(1)}, ${middle.toFixed(1)} ${y(point.value).toFixed(1)}, ${x(index).toFixed(1)} ${y(point.value).toFixed(1)}`
+  }, '')
+  const area = points.length ? `${line} L ${x(points.length - 1).toFixed(1)} ${(top + plotHeight).toFixed(1)} L ${x(0).toFixed(1)} ${(top + plotHeight).toFixed(1)} Z` : ''
+  const first = points[0]?.value ?? item.value
+  const latest = points.at(-1)?.value ?? item.value
+  const change = first != null && latest != null && first !== 0 ? ((latest - first) / first) * 100 : 0
+  const peak = values.length ? Math.max(...values) : item.value
+  const floor = values.length ? Math.min(...values) : item.value
+  const number = (value: number | null) => value == null ? 'Not set' : new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  const date = (value?: string) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  const ticks = Array.from({ length: 5 }, (_, index) => max - (max - min) * index / 4)
+  return <section className="price-history-panel" aria-labelledby="price-history-title">
+    <div className="price-history-heading"><div><span className="eyebrow section-eyebrow">MARKET TRACKER</span><h2 id="price-history-title">Price history</h2><p>Recorded value changes for this item</p></div><span className="history-point-count">{points.length} {points.length === 1 ? 'record' : 'records'}</span></div>
+    <div className="history-summary"><div><small>CURRENT</small><b>{number(item.value)}</b></div><div><small>CHANGE</small><b className={change > 0 ? 'history-up' : change < 0 ? 'history-down' : 'history-stable'}>{change > 0 ? '+' : ''}{change.toFixed(1)}%</b></div><div><small>PEAK</small><b>{number(peak)}</b></div><div><small>LOW</small><b>{number(floor)}</b></div></div>
+    <div className="price-chart-wrap">
+      {points.length ? <svg className="price-history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Price history for ${item.name}: ${points.length} recorded values`}>
+        <defs><linearGradient id="price-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#77d45c" stopOpacity=".24" /><stop offset="100%" stopColor="#77d45c" stopOpacity="0" /></linearGradient></defs>
+        {ticks.map((tick, index) => <g key={index}><line x1={left} x2={width - right} y1={top + index * plotHeight / 4} y2={top + index * plotHeight / 4} className="price-chart-gridline" /><text x={left - 10} y={top + index * plotHeight / 4 + 4} textAnchor="end" className="price-chart-label">{number(tick)}</text></g>)}
+        <path d={area} fill="url(#price-chart-fill)" /><path d={line} className="price-chart-line" />
+        {points.map((point, index) => (index === 0 || index === points.length - 1 || points.length < 8) && <circle key={`${point.recorded_at}-${index}`} cx={x(index)} cy={y(point.value)} r={points.length === 1 ? 5 : 3} className="price-chart-point"><title>{number(point.value)} · {date(point.recorded_at)}</title></circle>)}
+        {[...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].filter(index => index >= 0).map(index => <text key={`${points[index].recorded_at}-${index}`} x={index === 0 ? left : index === points.length - 1 ? width - right : x(index)} y={height - 12} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} className="price-chart-label">{date(points[index].recorded_at)}</text>)}
+      </svg> : <div className="price-chart-empty"><span className="price-chart-empty-line" /><b>History begins with the next price update</b><small>This chart will grow whenever the item value changes.</small></div>}
+    </div>
+    <div className="price-history-footer"><span><i /> VALUE</span><span>{date(points[0]?.recorded_at)}{points.length > 1 ? ` – ${date(points.at(-1)?.recorded_at)}` : ''}</span><PriceTrendIndicator trend={points.length ? { item_id: item.id, current_value: latest, previous_value: points.length > 1 ? points.at(-2)!.value : latest } : undefined} /></div>
+  </section>
 }
 
 function DemandStars({ rating, interactive = false, onChange }: { rating: number | null; interactive?: boolean; onChange?: (value: number | null) => void }) {
@@ -369,6 +423,8 @@ function Pagination({ page, pageCount, onPage }: { page: number; pageCount: numb
 function ItemDetailsPage({ itemId }: { itemId: string }) {
   const [item, setItem] = useState<Item | null>(null)
   const [related, setRelated] = useState<Item[]>([])
+  const [relatedTrends, setRelatedTrends] = useState<Record<string, PriceTrend>>({})
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -384,9 +440,18 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
         const found = data as Item
         setItem(found)
         document.title = `${found.name} · Turbo Soccer Values`
+        const historyResult = await supabase.from('item_price_history').select('value,recorded_at').eq('item_id', found.id).order('recorded_at', { ascending: false }).limit(1000)
+        if (alive && !historyResult.error) setPriceHistory(((historyResult.data ?? []) as PricePoint[]).reverse())
         if (found.category) {
           const result = await supabase.from('items').select('*').eq('category', found.category).neq('id', found.id).limit(4)
-          if (alive) setRelated((result.data ?? []) as Item[])
+          if (alive) {
+            const entries = (result.data ?? []) as Item[]
+            setRelated(entries)
+            if (entries.length) {
+              const trends = await supabase.from('item_price_trends').select('item_id,current_value,previous_value').in('item_id', entries.map(entry => entry.id))
+              if (alive && !trends.error) setRelatedTrends(Object.fromEntries(((trends.data ?? []) as PriceTrend[]).map(trend => [trend.item_id, trend])))
+            }
+          }
         }
       }
       setLoading(false)
@@ -399,8 +464,9 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   }
   return <div className="app-shell"><SiteNav activeView="values" />
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
-      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
-      {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} />)}</div></section>}
+      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><PriceTrendIndicator trend={priceHistory.length ? { item_id: item.id, current_value: priceHistory.at(-1)!.value, previous_value: priceHistory.length > 1 ? priceHistory.at(-2)!.value : priceHistory.at(-1)!.value } : undefined} /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
+      <PriceHistoryChart item={item} history={priceHistory} />
+      {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} trend={relatedTrends[entry.id]} />)}</div></section>}
     </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer></div>
 }
 

@@ -32,6 +32,17 @@ export type PromoCode = {
   updated_at: string
 }
 
+export type PriceTrend = {
+  item_id: string
+  current_value: number | null
+  previous_value: number | null
+}
+
+export type PricePoint = {
+  value: number
+  recorded_at: string
+}
+
 export function itemImage(path: string | null | undefined) {
   if (!path) return null
   if (/^https?:\/\//i.test(path)) return path
