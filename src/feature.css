@@ -17,12 +17,13 @@
 .hero-art.hero-goal-art img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; filter: saturate(.92) contrast(.98); }
 .hero-feature-art::after,
 .hero-art.hero-goal-art::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 24px #10120f55; }
-.hero-collectible-decor { position: absolute; z-index: 2; left: 30%; bottom: 22px; display: flex; align-items: center; gap: 9px; pointer-events: none; }
-.hero-collectible-decor img { width: 47px; aspect-ratio: 1; border: 1px solid #ffffff55; border-radius: 11px; box-shadow: 0 8px 18px #0007; object-fit: cover; animation: collectible-float 4.4s ease-in-out infinite; }
-.hero-collectible-decor img:nth-child(2) { width: 54px; animation-delay: -.8s; }
+.hero-collectible-decor { position: absolute; z-index: 2; left: 27%; bottom: 17px; display: flex; align-items: center; gap: 12px; pointer-events: none; }
+.hero-collectible-decor img { width: 84px; aspect-ratio: 1; border: 2px solid #ffffff75; border-radius: 17px; box-shadow: 0 11px 23px #0008,0 0 18px #f6c94e20; object-fit: cover; animation: collectible-float 4.4s ease-in-out infinite; }
+.hero-collectible-decor img:nth-child(2) { width: 96px; animation-delay: -.8s; }
 .hero-collectible-decor img:nth-child(3) { animation-delay: -1.6s; }
 @keyframes collectible-float { 0%,100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
-@media (max-width: 1100px) { .hero-collectible-decor { display: none; } }
+@media (max-width: 1800px) { .hero-collectible-decor { left: 27%; gap: 8px; } .hero-collectible-decor img { width: 62px; border-radius: 13px; } .hero-collectible-decor img:nth-child(2) { width: 72px; } }
+@media (max-width: 1200px) { .hero-collectible-decor { display: none; } }
 
 .promo-showcase { margin: 25px 0 0; padding: 24px; border: 1px solid #343830; border-radius: 16px; background: linear-gradient(140deg,#1c201a,#141612 70%); }
 .promo-showcase-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -48,12 +49,14 @@
 .card-item-art { position: relative; width: min(calc(100% - 12px),190px); aspect-ratio: 1; overflow: hidden; border: 1px solid #484848; border-radius: 9px; background: #333; box-shadow: 0 5px 14px #0005; }
 .card-item-art>img { display: block; width: 100%; height: 100%; padding: 0; object-fit: cover; transition: transform .25s ease; }
 .item-card:hover .card-item-art>img { transform: scale(1.05); }
-.variant-color-band { position: absolute; z-index: 3; top: 50%; left: 50%; right: auto; width: 84%; height: 7px; transform: translate(-50%,-50%) rotate(-34deg); border: 1px solid #ffffff88; border-radius: 99px; background: var(--variant-color); box-shadow: 0 2px 7px #0009; opacity: .88; pointer-events: none; }
+.variant-color-band { position: absolute; z-index: 3; top: 7%; left: 57%; width: 59%; height: 12%; transform: rotate(35deg); transform-origin: center; border: 1px solid #ffffff99; border-radius: 99px; background: linear-gradient(165deg,#ffffff55,transparent 48%),var(--variant-color); box-shadow: 0 2px 6px #0009,inset 0 1px 1px #ffffff88; pointer-events: none; }
+.detail-item-art { position: relative; width: min(70%,450px); max-height: 430px; overflow: hidden; border-radius: 20px; filter: drop-shadow(0 18px 19px #16032680); }
+.detail-item-art .detail-art { display: block; position: relative; width: 100%; max-height: 430px; border-radius: inherit; filter: none; }
 .variant-color-label { position: absolute; z-index: 2; left: 13px; top: 10px; padding: 4px 7px; border: 1px solid #ffffff55; border-radius: 5px; background: #11130fc9; color: white; font-size: 9px; font-weight: 800; }
-.detail-variant-band { width: 40%; height: 10px; }
-.trade-variant-band { position: absolute; z-index: 3; top: 50%; left: 50%; width: 72%; height: 5px; transform: translate(-50%,-50%) rotate(-34deg); border: 1px solid #ffffff88; border-radius: 99px; box-shadow: 0 2px 6px #0009; opacity: .88; pointer-events: none; }
-.catalogue-thumb .variant-color-band { width: 90%; height: 4px; }
-.preview-image .variant-color-band { width: 88%; height: 5px; }
+.detail-variant-band { top: 7%; left: 57%; width: 59%; height: 12%; }
+.trade-variant-band { position: absolute; z-index: 3; top: 7%; left: 57%; width: 59%; height: 12%; transform: rotate(35deg); transform-origin: center; border: 1px solid #ffffff99; border-radius: 99px; box-shadow: 0 2px 6px #0009,inset 0 1px 1px #ffffff88; pointer-events: none; }
+.catalogue-thumb .variant-color-band { width: 59%; height: 12%; }
+.preview-image .variant-color-band { width: 59%; height: 12%; }
 
 .trade-picker { padding: 11px 13px 12px; border-bottom: 1px solid #603382; }
 .trade-picker-controls { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px,.55fr); gap: 8px; }
