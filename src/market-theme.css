@@ -458,6 +458,54 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   to { opacity: 1; translate: 0 0; }
 }
 
+/* Compact centered artwork keeps sparse catalogues from feeling empty. */
+.card-visual { aspect-ratio: auto; height: clamp(155px, 13vw, 205px); }
+.card-visual > img { width: clamp(96px, 38%, 158px); height: auto; aspect-ratio: 1; padding: 6px; border: 1px solid #484848; border-radius: 8px; background: linear-gradient(145deg, #3a3a3a, #292929); }
+.item-grid-sparse.sparse-1 { max-width: 330px; }
+.item-grid-sparse.sparse-2 { max-width: 650px; }
+.item-grid-sparse.sparse-3 { max-width: 1000px; }
+.detail-art-wrap { min-height: 0; }
+.detail-art { width: min(58%, 250px); height: auto; aspect-ratio: 1; padding: 10px; border: 1px solid #454545; border-radius: 12px; background: linear-gradient(145deg, #353535, #252525); }
+
+/* The supplied Octane/Fennec artwork appears as a small framed hero decoration. */
+.hero-fennec-card { position: absolute; z-index: 2; right: -2%; bottom: -18px; width: clamp(140px, 20vw, 230px); padding: 5px 5px 22px; border: 1px solid #555; border-radius: 7px; background: #eee; box-shadow: 0 12px 28px #0009; transform: rotate(4deg); transition: transform .2s ease; }
+.hero-fennec-card:hover { transform: rotate(1deg) translateY(-3px); }
+.hero-fennec-card img { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; }
+.hero-fennec-card span { position: absolute; right: 8px; bottom: 6px; color: #313131; font: 700 8px var(--display); letter-spacing: .12em; }
+
+/* Admins can see the removal affordance directly on every uploaded image. */
+.image-option-wrap { position: relative; min-width: 0; aspect-ratio: 1; }
+.image-option-wrap .image-option { width: 100%; height: 100%; aspect-ratio: 1; }
+.image-option-delete { position: absolute; z-index: 3; top: 4px; right: 4px; width: 23px; height: 23px; display: grid; place-items: center; padding: 0; border: 1px solid #777; border-radius: 50%; background: #202020eF; color: #fff; cursor: pointer; box-shadow: 0 2px 8px #0008; }
+.image-option-delete:hover { border-color: #ff9586; background: #a83832; }
+.image-option-delete:disabled { opacity: .5; cursor: wait; }
+
+/* Community demand, rated by admins on a five-star scale. */
+.demand-field { gap: 8px; }
+.demand-stars { display: inline-flex; align-items: center; gap: 3px; color: #ffd166; }
+.demand-stars.interactive { min-height: 32px; gap: 4px; }
+.demand-stars.interactive > button { width: 29px; height: 29px; display: grid; place-items: center; padding: 0; border: 1px solid #4a4a4a; border-radius: 5px; background: #292929; color: #858585; cursor: pointer; }
+.demand-stars.interactive > button[aria-checked="true"], .demand-stars.interactive > button:hover { color: #ffd166; border-color: #9e843d; }
+.demand-stars.interactive .clear-demand { width: auto; padding: 0 8px; color: #bbb; font-size: 10px; }
+.card-info .demand-stars { margin-top: 8px; }
+.detail-demand { display: flex; align-items: center; gap: 12px; margin-top: 18px; color: #9f9f9f; font-size: 9px; letter-spacing: .12em; }
+.owner-admin-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 0 10px; padding-top: 18px; border-top: 1px solid #393939; }
+.owner-admin-list-heading h3 { margin: 0; color: #eee; font-size: 15px; }
+.owner-admin-list-heading p { margin: 5px 0 0; color: #aaa; font-size: 11px; }
+.owner-admin-list-heading > span { flex: none; padding: 6px 10px; border: 1px solid #444; border-radius: 99px; color: #ddd; font-size: 10px; }
+.account-actions .danger-action { color: #ffb2a4; border-color: #815447; }
+@media (max-width: 700px) {
+  .card-visual { height: 150px; }
+  .item-grid-sparse.sparse-2 { max-width: 540px; }
+  .hero-fennec-card { right: 0; bottom: -10px; width: clamp(130px, 38vw, 190px); }
+  .owner-admin-list-heading { align-items: flex-start; }
+}
+@media (max-width: 420px) {
+  .card-visual { height: 132px; }
+  .card-visual > img { width: 52%; }
+  .image-option-delete { width: 21px; height: 21px; }
+}
+
 @keyframes car-float {
   0%, 100% { transform: translateY(0) rotate(-2deg); }
   50% { transform: translateY(-5px) rotate(-1deg); }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, ExternalLink, ImagePlus, LockKeyhole, LogOut, Minus, Plus,
-  Search, ShieldCheck, SlidersHorizontal, Trash2, Upload, X,
+  Search, ShieldCheck, SlidersHorizontal, Star, Trash2, Upload, X,
 } from 'lucide-react'
 import { configured, errorMessage, itemImage, supabase, type Item } from './lib/supabase'
 import { sourceImages } from './catalogImages'
@@ -14,9 +14,9 @@ const CATEGORY_OPTIONS = ['Car', 'Pattern', 'Color', 'Wheels', 'Boost', 'Trail',
 const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Exclusive', 'Halloween', 'Beta']
 type View = 'values' | 'trade'
 type TradeLine = { id: string; quantity: number }
-type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string }
+type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string }
 type AdminProfile = { role: 'OWNER' | 'ADMIN'; username: string | null; display_name: string; title: string; title_color: string; status: string; must_change_password: boolean; last_seen: string | null }
-const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '' }
+const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '' }
 
 function App() {
   useEffect(() => {
@@ -114,6 +114,7 @@ function PublicApp() {
             <img src="https://tr.rbxcdn.com/180DAY-de7403f612ee9df3b6328da11e20792b/512/512/Image/Png/noFilter" alt="" />
             <span className="car-frame-label">TURBO SOCCER · CAR SOCCER</span>
           </div>
+          <div className="hero-fennec-card"><img src="/brand/octane-fennec.jpg" alt="Deux voitures Octane et Fennec" /><span>OCTANE · FENNEC</span></div>
           <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
           <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
         </div>
@@ -198,8 +199,21 @@ function ItemCard({ item }: { item: Item }) {
   return <a className="item-card" href={`/item/${item.id}`} aria-label={`Open ${item.name} details`}>
     <div className="item-card-heading"><h3>{item.name}</h3>{item.rarity && <span className="rarity-chip">{item.rarity}</span>}</div>
     <div className="card-visual">{image ? <img src={image} alt={item.name} loading="lazy" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}<span className="view-details">Details <ChevronRight size={13} /></span></div>
-    <div className="card-info"><div className="item-subline"><span>{item.category || 'Uncategorized'}</span><span className="card-value-label">VALUE</span></div><CoinValue value={item.value} compact className="card-value" /></div>
+    <div className="card-info"><div className="item-subline"><span>{item.category || 'Uncategorized'}</span><span className="card-value-label">VALUE</span></div><CoinValue value={item.value} compact className="card-value" />{item.demand != null && <DemandStars rating={item.demand} />}</div>
   </a>
+}
+
+function DemandStars({ rating, interactive = false, onChange }: { rating: number | null; interactive?: boolean; onChange?: (value: number | null) => void }) {
+  return <div className={`demand-stars${interactive ? ' interactive' : ''}`} role={interactive ? 'radiogroup' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5 stars`}>
+    {Array.from({ length: 5 }, (_, index) => {
+      const value = index + 1
+      const active = rating != null && value <= rating
+      return interactive
+        ? <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} out of 5 stars`} onClick={() => onChange?.(value)}><Star size={15} fill={active ? 'currentColor' : 'none'} /></button>
+        : <Star key={value} size={13} fill={active ? 'currentColor' : 'none'} aria-hidden="true" />
+    })}
+    {interactive && rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
+  </div>
 }
 
 function EmptyItems({ search, onClear }: { search: string; onClear: () => void }) {
@@ -243,7 +257,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   }
   return <div className="app-shell"><header className="topbar"><a className="brand" href="/" aria-label="Turbo Soccer Values home"><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a><nav className="main-nav"><a className="nav-link" href="/">Value list</a><a className="nav-link" href="/?tab=trade">Trade calculator</a></nav><div className="top-actions"><a className="admin-link" href="/admin"><LockKeyhole size={15} /> Admin</a></div></header>
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
-      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className="rarity-chip">{item.rarity}</span>}</div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
+      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" /> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className="rarity-chip">{item.rarity}</span>}</div>{item.demand != null && <div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>}{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} />)}</div></section>}
     </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer></div>
 }
@@ -369,7 +383,7 @@ function Admin() {
     setBusy(false)
   }
   function editItem(item: Item) {
-    setEditing(item.id); setForm({ name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '' }); window.scrollTo({ top: 0, behavior: 'smooth' })
+    setEditing(item.id); setForm({ name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '', demand: item.demand == null ? '' : String(item.demand) }); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   async function saveItem(e: FormEvent) {
     e.preventDefault(); if (!supabase) return
@@ -378,9 +392,10 @@ function Admin() {
     if (!name) { setNotice('Enter an item name before saving.'); return }
     if (val !== null && (!Number.isSafeInteger(val) || val < 0)) { setNotice('Value must be a non-negative whole number.'); return }
     setBusy(true); setNotice('')
-    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null }
+    const demand = form.demand === '' ? null : Number(form.demand)
+    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand }
     const result = editing ? await supabase.from('items').update(payload).eq('id', editing) : await supabase.from('items').insert(payload)
-    if (result.error) setNotice(result.error.code === '23505' ? 'An item with that name already exists.' : errorMessage(result.error))
+    if (result.error) setNotice(result.error.code === '23505' ? 'An item with that name already exists.' : result.error.message.toLowerCase().includes("'demand'") || result.error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 202610270002_item_demand_stars.sql before saving demand ratings.' : errorMessage(result.error))
     else { setNotice(editing ? 'Item updated.' : 'Item added.'); setForm(blankForm); setEditing(null); await refresh() }
     setBusy(false)
   }
@@ -405,16 +420,14 @@ function Admin() {
     else { const { data } = supabase.storage.from('item-images').getPublicUrl(path); setForm(f => ({ ...f, image_path: data.publicUrl })); setNotice('Image uploaded. Save the item to link it.') }
     setUploading(false)
   }
-  async function deleteUploadedImage() {
-    if (!supabase || !form.image_path) return
-    const objectPath = uploadedImageObjectPath(form.image_path)
+  async function deleteUploadedImage(imagePath = form.image_path) {
+    if (!supabase || !imagePath) return
+    const objectPath = uploadedImageObjectPath(imagePath)
     if (!objectPath) { setNotice('This bundled game image cannot be deleted from storage. You can still remove it from this item.'); return }
-    const imagePath = form.image_path
     const { data: references, error: referenceError } = await supabase.from('items').select('id').eq('image_path', imagePath)
     if (referenceError) { setNotice(`Could not check which items use this image: ${errorMessage(referenceError)}`); return }
     const referenceCount = references?.length ?? 0
-    const affectedItems = referenceCount === 1 ? '1 item will lose this image.' : `${referenceCount} items will lose this image.`
-    if (!window.confirm(`Permanently delete this uploaded image? ${affectedItems} This cannot be undone.`)) return
+    const affectedItems = referenceCount === 1 ? ' The linked item will remain but lose its image.' : referenceCount > 1 ? ` ${referenceCount} linked items will remain but lose their image.` : ''
     setBusy(true); setNotice('')
     if (referenceCount) {
       const { error: unlinkError } = await supabase.from('items').update({ image_path: null }).eq('image_path', imagePath)
@@ -424,7 +437,7 @@ function Admin() {
     const { error } = await supabase.storage.from('item-images').remove([objectPath])
     setForm(current => current.image_path === imagePath ? { ...current, image_path: '' } : current)
     if (error) setNotice(`The image was unlinked, but its file could not be deleted: ${errorMessage(error)}`)
-    else setNotice('Uploaded image permanently deleted.')
+    else setNotice(`Uploaded image permanently deleted.${affectedItems}`)
     setBusy(false)
   }
   function exportCsv() {
@@ -454,10 +467,11 @@ function Admin() {
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
         {form.image_path && <div className="image-current-preview"><div className="image-current-art">{selectedImage ? <img src={selectedImage} alt="Selected item" /> : <ImagePlus size={24} />}</div><div className="image-current-details"><b>Selected image</b><small>{selectedUpload ? selectedUpload.split('/').pop() : form.image_path.split('/').pop()}</small><div className="image-current-actions"><button type="button" className="secondary-button" onClick={() => setForm(current => ({ ...current, image_path: '' }))}><X size={14} /> Remove from item</button>{selectedUpload && <button type="button" className="delete-image-button" disabled={busy} onClick={() => void deleteUploadedImage()}><Trash2 size={14} /> Delete uploaded photo</button>}</div></div></div>}
         <label className="image-search"><Search size={15} /><input placeholder="Search images by filename..." value={imageSearch} onChange={e => setImageSearch(e.target.value)} /><span>{visibleImages.length}</span></label>
-        <div className="image-options">{visibleImages.map(src => <button key={src} type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button>)}</div>
+        <div className="image-options">{visibleImages.map(src => { const uploaded = Boolean(uploadedImageObjectPath(src)); return <div key={src} className="image-option-wrap"><button type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button>{uploaded && <button type="button" className="image-option-delete" title="Delete uploaded image (linked items will lose their image)" aria-label={`Delete uploaded image ${src.split('/').pop()}`} disabled={busy} onClick={() => void deleteUploadedImage(src)}><X size={13} /></button>}</div> })}</div>
         {!visibleImages.length && <div className="image-library-empty">No images match that search.</div>}
         <label className="upload-button"><Upload size={14} /> {uploading ? 'Uploading…' : 'Upload new photo'}<input type="file" accept="image/webp,image/png,image/jpeg,image/gif" disabled={uploading} onChange={e => { void uploadImage(e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
       </div>
+      <label className="demand-field">Community demand <small>optional · choose 1 to 5 stars</small><DemandStars rating={form.demand === '' ? null : Number(form.demand)} interactive onChange={rating => setForm(current => ({ ...current, demand: rating == null ? '' : String(rating) }))} /></label>
       <label>Description <small>optional</small><textarea maxLength={2000} rows={3} placeholder="Add item details" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
       <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}{form.rarity ? ` · ${form.rarity}` : ''}</small></div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
       <button className="primary-button full-button" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add item'} <Check size={16} /></button></form></section>

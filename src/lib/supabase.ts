@@ -14,6 +14,7 @@ export type Item = {
   category: string | null
   rarity: string | null
   description: string | null
+  demand: number | null
   created_at: string
   updated_at: string
 }
