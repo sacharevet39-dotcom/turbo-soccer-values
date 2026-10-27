@@ -631,9 +631,15 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   inset: auto;
   width: 100%;
   aspect-ratio: 1024 / 384;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   transform: none;
   animation: none;
 }
+.hero-feature-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .hero-art {
   position: relative;
   inset: auto;
@@ -746,7 +752,6 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .hero-meta { margin-top: 14px; }
   .hero-meta > a { min-height: 36px; padding: 7px 9px; font-size: 9px; }
   .hero-feature-art { width: 100%; }
-  .hero-feature-art { aspect-ratio: 2.15; }
   .hero-art { height: auto; aspect-ratio: 1.45; }
   .hero-car-frame { height: 100%; }
   .image-options { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 300px; }
