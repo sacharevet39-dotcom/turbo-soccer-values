@@ -12,6 +12,23 @@ import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdmin
 const PAGE_SIZE = 24
 const CATEGORY_OPTIONS = ['Car', 'Pattern', 'Color', 'Wheels', 'Boost', 'Trail', 'Goal Explosion', 'Demolition Explosion', 'Ball', 'Hat', 'Banner', 'Border', 'Title', 'Horn', 'Plate', 'Finish']
 const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Exclusive', 'Halloween', 'Beta']
+const COLOR_VARIANTS = [
+  { name: 'Garra', hex: '#7137B8' },
+  { name: 'Black', hex: '#171717' },
+  { name: 'Titanium White', hex: '#F5F5F5' },
+  { name: 'Grey', hex: '#808080' },
+  { name: 'Crimson', hex: '#DC143C' },
+  { name: 'Pink', hex: '#FF69B4' },
+  { name: 'Cobalt', hex: '#0047AB' },
+  { name: 'Sky Blue', hex: '#38BDF8' },
+  { name: 'Burnt Sienna', hex: '#A0522D' },
+  { name: 'Saffron', hex: '#F4C430' },
+  { name: 'Lime', hex: '#84CC16' },
+  { name: 'Forest Green', hex: '#228B22' },
+  { name: 'Orange', hex: '#F97316' },
+  { name: 'Purple', hex: '#7E22CE' },
+  { name: 'Gold', hex: '#FFD700' },
+] as const
 function rarityTone(rarity: string) {
   const key = rarity.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '')
   const tones: Record<string, string> = { common: 'common', commun: 'common', uncommon: 'uncommon', peucommun: 'uncommon', rare: 'rare', epic: 'epic', epique: 'epic', legendary: 'legendary', legendaire: 'legendary', exclusive: 'exclusive', exclusif: 'exclusive', halloween: 'halloween', beta: 'beta' }
@@ -256,16 +273,15 @@ function AdminIdentities() {
 
 function PromoCodeShowcase({ codes, loading }: { codes: PromoCode[]; loading: boolean }) {
   const [copied, setCopied] = useState('')
-  async function copyPromoText(entry: PromoCode, mode: 'code' | 'details') {
-    const key = `${entry.id}:${mode}`
-    const text = mode === 'code' ? entry.code : `${entry.code}\n${entry.reward}`
-    try { await navigator.clipboard.writeText(text); setCopied(key); window.setTimeout(() => setCopied(current => current === key ? '' : current), 1600) }
+  async function copyPromoCode(entry: PromoCode) {
+    const key = entry.id
+    try { await navigator.clipboard.writeText(entry.code); setCopied(key); window.setTimeout(() => setCopied(current => current === key ? '' : current), 1600) }
     catch { setCopied('') }
   }
   return <section className="promo-showcase" aria-label="Promo codes">
     {codes.length ? <div className="promo-code-grid">{codes.map(entry => <article className={`promo-code-card${entry.is_expired ? ' expired' : ''}`} key={entry.id}>
       <div className="promo-code-status"><span aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span>{entry.is_expired ? 'Expired' : 'Available'}</div>
-      <div className="promo-code-main"><b>{entry.code}</b><div className="promo-code-actions"><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyPromoText(entry, 'code')} aria-label={`Copy code ${entry.code}`}>{copied === `${entry.id}:code` ? 'Copied' : 'Copy code'}</button><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyPromoText(entry, 'details')} aria-label={`Copy ${entry.code} and its reward text`}>{copied === `${entry.id}:details` ? 'Copied' : 'Copy text'}</button></div></div>
+      <div className="promo-code-main"><b>{entry.code}</b><div className="promo-code-actions"><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyPromoCode(entry)} aria-label={`Copy code ${entry.code}`}>{copied === entry.id ? 'Copied' : 'Copy code'}</button></div></div>
       <p>{entry.reward}</p>
     </article>)}</div> : <p className="promo-showcase-empty">{loading ? 'Loading promo codes…' : 'No promo codes are listed right now.'}</p>}
   </section>
@@ -421,7 +437,7 @@ function Admin() {
   const [uploading, setUploading] = useState(false)
   const [adminSection, setAdminSection] = useState<AdminSection>('publish')
   const [hasColorVariants, setHasColorVariants] = useState(false)
-  const [colorVariants, setColorVariants] = useState<ColorDraft[]>([{ name: '', hex: '#60A5FA' }])
+  const [colorVariants, setColorVariants] = useState<ColorDraft[]>([{ name: '', hex: COLOR_VARIANTS[0].hex }])
   const [promoForm, setPromoForm] = useState<PromoForm>(blankPromoForm)
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null)
 
@@ -508,17 +524,19 @@ function Admin() {
     const val = form.value.trim() === '' ? null : Number(form.value)
     if (!name) { setNotice('Enter an item name before saving.'); return }
     if (val !== null && (!Number.isSafeInteger(val) || val < 0)) { setNotice('Value must be a non-negative whole number.'); return }
+    const selectedVariant = COLOR_VARIANTS.find(color => color.name === form.variant_color_name)
+    if (editing && form.variant_parent_id && !selectedVariant) { setNotice('Choose one of the 15 available color variants.'); return }
     setBusy(true); setNotice('')
     const demand = form.demand === '' ? null : Number(form.demand)
-    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand, variant_parent_id: form.variant_parent_id || null, variant_color_name: form.variant_color_name.trim() || null, variant_color_hex: form.variant_color_hex || null }
+    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand, variant_parent_id: form.variant_parent_id || null, variant_color_name: selectedVariant?.name ?? (form.variant_color_name.trim() || null), variant_color_hex: selectedVariant?.hex ?? (form.variant_color_hex || null) }
     let error: { code?: string; message: string } | null = null
     if (editing) {
       const result = await supabase.from('items').update(payload).eq('id', editing)
       error = result.error
     } else if (hasColorVariants) {
-      const normalized = colorVariants.map(color => ({ name: color.name.trim(), hex: color.hex.toUpperCase() }))
-      if (normalized.some(color => !color.name || !/^#[0-9A-F]{6}$/.test(color.hex)) || new Set(normalized.map(color => color.name.toLowerCase())).size !== normalized.length) {
-        setNotice('Enter a unique name and a valid color for every variant.'); setBusy(false); return
+      const normalized = colorVariants.map(color => COLOR_VARIANTS.find(allowed => allowed.name === color.name))
+      if (normalized.some(color => !color) || new Set(normalized.map(color => color?.name)).size !== normalized.length) {
+        setNotice('Choose a different color from the 15 available variants for each version.'); setBusy(false); return
       }
       const result = await supabase.rpc('turbo_create_item_with_variants', { p_item: { ...payload, variant_parent_id: null, variant_color_name: null, variant_color_hex: null }, p_variants: normalized })
       error = result.error
@@ -527,7 +545,7 @@ function Admin() {
       error = result.error
     }
     if (error) setNotice(error.code === '23505' ? 'An item or color variant with that name already exists.' : error.message.toLowerCase().includes('variant') ? error.message : error.message.toLowerCase().includes("'demand'") || error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 20261027032224_item_demand_stars.sql before saving demand ratings.' : errorMessage(error))
-    else { setNotice(editing ? 'Item updated.' : hasColorVariants ? 'Item and color variants added.' : 'Item added.'); setForm(blankForm); setEditing(null); setHasColorVariants(false); setColorVariants([{ name: '', hex: '#60A5FA' }]); await refresh() }
+    else { setNotice(editing ? 'Item updated.' : hasColorVariants ? 'Item and color variants added.' : 'Item added.'); setForm(blankForm); setEditing(null); setHasColorVariants(false); setColorVariants([{ name: '', hex: COLOR_VARIANTS[0].hex }]); await refresh() }
     setBusy(false)
   }
   async function deleteItem(item: Item) {
@@ -658,8 +676,8 @@ function Admin() {
     {adminSection === 'codes' && <section className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">HOMEPAGE CONTENT</span><h2>Manage promo codes</h2><p>Update the public code list and mark expired offers.</p></div><section className="admin-panel promo-manager"><form className="promo-manager-form" onSubmit={savePromo}><label>Code<input required maxLength={32} pattern="[A-Za-z0-9_-]{2,32}" placeholder="e.g. 85KLIKES" value={promoForm.code} onChange={event => setPromoForm({ ...promoForm, code: event.target.value.toUpperCase() })} /></label><label>Reward description<input required maxLength={200} placeholder="Describe what the code gives" value={promoForm.reward} onChange={event => setPromoForm({ ...promoForm, reward: event.target.value })} /></label><label className="promo-expired-toggle"><input type="checkbox" checked={promoForm.is_expired} onChange={event => setPromoForm({ ...promoForm, is_expired: event.target.checked })} /> Mark as expired</label><button className="primary-button" disabled={busy}>{editingPromoId ? 'Save code' : 'Add code'} <Check size={15} /></button>{editingPromoId && <button type="button" className="secondary-button" onClick={() => { setEditingPromoId(null); setPromoForm(blankPromoForm) }}>Cancel</button>}</form><div className="promo-manager-list">{promoCodes.map(entry => <article className="promo-manager-row" key={entry.id}><span className="promo-manager-status" aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span><div><b>{entry.code}</b><small>{entry.reward}</small></div><span className={`promo-status-chip${entry.is_expired ? ' expired' : ''}`}>{entry.is_expired ? 'Expired' : 'Available'}</span><button className="row-action" onClick={() => editPromo(entry)}>Edit</button><button className="row-delete" aria-label={`Delete ${entry.code}`} onClick={() => void deletePromo(entry)}><Trash2 size={15} /></button></article>)}</div>{!promoCodes.length && <p className="promo-manager-empty">No promo codes yet. Add the first one above.</p>}</section></section>}
     {adminSection === 'publish' && <div className="admin-section-content"><div className="admin-section-intro"><span className="panel-kicker">CATALOG</span><h2>Manage items</h2><p>Add an item or update a published value.</p></div><div className="admin-layout"><section className="admin-panel editor-panel"><div className="panel-heading"><div><span className="panel-kicker">{editing ? 'EDIT ITEM' : 'NEW ITEM'}</span><h2>{editing ? 'Update details' : 'Add to the list'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(blankForm) }}>Cancel edit</button>}</div>
       <form onSubmit={saveItem} className="admin-form"><label>Item name <span className="required-star">*</span><input maxLength={100} required placeholder="Enter the official name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label><div className="form-two"><label>Value in coins <small>whole numbers</small><input type="number" min="0" step="1" placeholder="Leave blank if unknown" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></label><label>Category <small>optional</small><input list="category-options" maxLength={60} placeholder="e.g. Ball" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /><datalist id="category-options">{CATEGORY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label></div><div className="form-two"><label>Rarity <small>optional</small><input list="rarity-options" maxLength={60} placeholder="e.g. Limited" value={form.rarity} onChange={e => setForm({ ...form, rarity: e.target.value })} /><datalist id="rarity-options">{RARITY_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label><label>Image <small>optional</small><span className="image-status">{form.image_path ? 'Image selected' : 'No image selected'}</span></label></div>
-      {!editing && <div className="variant-setup"><label className="variant-toggle"><input type="checkbox" checked={hasColorVariants} onChange={event => setHasColorVariants(event.target.checked)} /><span><b>This item has color variants</b><small>Create up to 15 color versions using this item’s image.</small></span></label>{hasColorVariants && <div className="variant-draft-list">{colorVariants.map((color, index) => <div className="variant-draft-row" key={index}><span className="variant-draft-number">{index + 1}</span><label>Color name<input required maxLength={32} placeholder="e.g. Sky Blue" value={color.name} onChange={event => setColorVariants(current => current.map((entry, i) => i === index ? { ...entry, name: event.target.value } : entry))} /></label><label>Color<input type="color" value={color.hex} onChange={event => setColorVariants(current => current.map((entry, i) => i === index ? { ...entry, hex: event.target.value } : entry))} /></label>{colorVariants.length > 1 && <button type="button" className="row-delete" aria-label={`Remove color ${color.name || index + 1}`} onClick={() => setColorVariants(current => current.filter((_, i) => i !== index))}><X size={15} /></button>}</div>)}<button type="button" className="secondary-button add-color-variant" disabled={colorVariants.length >= 15} onClick={() => setColorVariants(current => [...current, { name: '', hex: '#60A5FA' }])}><Plus size={15} /> Add color ({colorVariants.length}/15)</button></div>}</div>}
-      {editing && form.variant_parent_id && <div className="variant-edit-fields"><span className="panel-kicker">COLOR VARIANT</span><label>Variant name<input required maxLength={32} value={form.variant_color_name} onChange={event => setForm({ ...form, variant_color_name: event.target.value })} /></label><label>Color<input type="color" value={form.variant_color_hex || '#60A5FA'} onChange={event => setForm({ ...form, variant_color_hex: event.target.value.toUpperCase() })} /></label><small>This version is managed as its own item. Its image comes from the original item.</small></div>}
+      {!editing && <div className="variant-setup"><label className="variant-toggle"><input type="checkbox" checked={hasColorVariants} onChange={event => setHasColorVariants(event.target.checked)} /><span><b>This item has color variants</b><small>Choose from the 15 available colors for each version.</small></span></label>{hasColorVariants && <div className="variant-draft-list">{colorVariants.map((color, index) => <div className="variant-draft-row" key={index}><span className="variant-draft-number">{index + 1}</span><label>Color name<select required value={color.name} onChange={event => { const selected = COLOR_VARIANTS.find(option => option.name === event.target.value); setColorVariants(current => current.map((entry, i) => i === index ? { name: selected?.name ?? '', hex: selected?.hex ?? COLOR_VARIANTS[0].hex } : entry)) }}><option value="">Choose a color</option>{COLOR_VARIANTS.map(option => <option key={option.name} value={option.name}>{option.name}</option>)}</select></label><span className="variant-color-swatch" style={{ backgroundColor: color.hex }} aria-label={color.name || 'Color preview'} />{colorVariants.length > 1 && <button type="button" className="row-delete" aria-label={`Remove color ${color.name || index + 1}`} onClick={() => setColorVariants(current => current.filter((_, i) => i !== index))}><X size={15} /></button>}</div>)}<button type="button" className="secondary-button add-color-variant" disabled={colorVariants.length >= 15} onClick={() => setColorVariants(current => [...current, { name: '', hex: COLOR_VARIANTS[0].hex }])}><Plus size={15} /> Add color ({colorVariants.length}/15)</button></div>}</div>}
+      {editing && form.variant_parent_id && <div className="variant-edit-fields"><span className="panel-kicker">COLOR VARIANT</span><label>Variant name<select required value={COLOR_VARIANTS.some(option => option.name === form.variant_color_name) ? form.variant_color_name : ''} onChange={event => { const selected = COLOR_VARIANTS.find(option => option.name === event.target.value); setForm({ ...form, variant_color_name: selected?.name ?? '', variant_color_hex: selected?.hex ?? '' }) }}><option value="">Choose a color</option>{COLOR_VARIANTS.map(option => <option key={option.name} value={option.name}>{option.name}</option>)}</select></label><span className="variant-color-swatch" style={{ backgroundColor: form.variant_color_hex || '#555' }} aria-label={`${form.variant_color_name || 'Color'} preview`} /><small>This version is managed as its own item. Its image comes from the original item.</small></div>}
       <div className="image-picker">
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
         {form.image_path && <div className="image-current-preview"><div className="image-current-art">{selectedImage ? <img src={selectedImage} alt="Selected item" /> : <ImagePlus size={24} />}</div><div className="image-current-details"><b>Selected image</b><small>{selectedUpload ? selectedUpload.split('/').pop() : form.image_path.split('/').pop()}</small><div className="image-current-actions"><button type="button" className="secondary-button" onClick={() => setForm(current => ({ ...current, image_path: '' }))}><X size={14} /> Remove from item</button>{selectedUpload && <button type="button" className="delete-image-button" disabled={busy} onClick={() => void deleteUploadedImage()}><Trash2 size={14} /> Delete uploaded photo</button>}</div></div></div>}
