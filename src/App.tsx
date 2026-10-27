@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, ExternalLink, ImagePlus, LockKeyhole, LogOut, Minus, Plus,
-  Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, X,
+  Search, ShieldCheck, SlidersHorizontal, Trash2, Upload, X,
 } from 'lucide-react'
 import { configured, errorMessage, itemImage, supabase, type Item } from './lib/supabase'
 import { sourceImages } from './catalogImages'
@@ -100,47 +100,45 @@ function PublicApp() {
         <button className={view === 'values' ? 'nav-link active' : 'nav-link'} onClick={() => setView('values')}>Value list</button>
         <button className={view === 'trade' ? 'nav-link active' : 'nav-link'} onClick={() => setView('trade')}>Trade calculator</button>
       </nav>
-      <div className="top-actions"><span className="live-pill"><span /> Fan-made & admin-updated</span><OnlineCount /><a className="admin-link" href="/admin"><LockKeyhole size={15} /> Admin</a></div>
+      <div className="top-actions"><OnlineCount /><a className="admin-link" href="/admin"><LockKeyhole size={15} /> Admin</a></div>
     </header>
     <main>
       <section className="hero">
-        <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> TURBO SOCCER · ITEM DATABASE</div>
+        <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> TURBO SOCCER VALUES</div>
           <h1>Turbo Soccer<br /><span>market</span></h1>
-          <p>Explore the item list, compare coin values, and put together your next trade.</p>
-          <div className="hero-meta"><span><Sparkles size={15} /> Community values · Updated by admins</span><span className="meta-separator" /><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
+          <p>Check item values, then compare both sides before you trade.</p>
+          <div className="hero-meta"><span>Values shared by the community</span><span className="meta-separator" /><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-car-frame">
             <img src="https://tr.rbxcdn.com/180DAY-de7403f612ee9df3b6328da11e20792b/512/512/Image/Png/noFilter" alt="" />
             <span className="car-frame-label">TURBO SOCCER · CAR SOCCER</span>
           </div>
-          <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>BUILD A FAIR TRADE</span></div>
+          <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
           <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
-          <div className="car-spec car-spec-one"><span>01</span> CHASSIS & STYLE</div>
-          <div className="car-spec car-spec-two"><span>02</span> COMMUNITY VALUES</div>
         </div>
       </section>
       <section className="content-section">
-        <div className="section-heading"><div><div className="eyebrow section-eyebrow">THE MARKET</div><h2>{view === 'values' ? 'Item values' : 'Trade calculator'}</h2><p>{view === 'values' ? 'Find your item and check where it stands.' : 'Build both sides and compare the total value.'}</p></div>
+        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : 'YOUR TRADE'}</div><h2>{view === 'values' ? 'Item values' : 'Trade calculator'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : 'Add items for each player to compare totals.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
         </div>
         {!configured && <SetupNotice />}
         {loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
         {view === 'values' ? <>
           <div className="toolbar">
-            <label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items..." aria-label="Search items" />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} /></button>}</label>
+            <label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by item name" aria-label="Search by item name" />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} /></button>}</label>
             <div className="toolbar-right"><label className="select-wrap"><SlidersHorizontal size={15} /><select value={category} onChange={e => setCategory(e.target.value)} aria-label="Filter category"><option value="all">All categories</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={14} /></label><button className="sort-button" onClick={() => setSort(sort === 'high' ? 'low' : 'high')}><span>{sort === 'high' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpWideNarrow size={15} />}</span> Value: {sort === 'high' ? 'Highest' : 'Lowest'}</button></div>
           </div>
           <div className="category-chips" aria-label="Quick category filters"><button className={category === 'all' ? 'category-chip active' : 'category-chip'} onClick={() => setCategory('all')}>All items</button>{quickCategories.map(c => <button key={c} className={category === c ? 'category-chip active' : 'category-chip'} onClick={() => setCategory(category === c ? 'all' : c)}>{c}</button>)}</div>
           {loading ? <div className="loading-grid">{Array.from({ length: 8 }, (_, i) => <div className="skeleton-card" key={i}><div /><span /><b /></div>)}</div> : pageItems.length ? <>
-            <div className="item-grid">{pageItems.map(item => <ItemCard item={item} key={item.id} />)}</div>
+            <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
         </> : <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} />}
       </section>
     </main>
     <AdminIdentities />
-    <footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Community-maintained values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer>
+    <footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Community values · Not affiliated with Roblox</span><span>Values are a guide. Agree on a trade with the other player.</span></footer>
   </div>
 }
 
