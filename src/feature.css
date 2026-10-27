@@ -31,6 +31,7 @@
 .promo-code-status span { font-size: 15px; }
 .promo-code-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; }
 .promo-code-main>b { color: #f5f5ef; font: 800 clamp(18px,2vw,25px)/1 var(--display); letter-spacing: .04em; overflow-wrap: anywhere; }
+.promo-code-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .promo-copy { border: 1px solid #48513b; border-radius: 7px; padding: 6px 9px; background: #181b16; color: #dce4d1; font-size: 10px; cursor: pointer; }
 .promo-copy:hover:not(:disabled) { border-color: var(--lime); color: var(--lime); }
 .promo-copy:disabled { cursor: not-allowed; }
@@ -120,12 +121,12 @@
   .promo-showcase-heading h2 { font-size: 28px; }
   .promo-showcase-heading p { max-width: 260px; font-size: 10px; }
   .promo-code-grid { gap: 8px; }
-  .promo-code-card { grid-template-columns: minmax(0,1fr) auto; column-gap: 10px; row-gap: 9px; min-height: 0; padding: 12px; }
-  .promo-code-status { grid-column: 1; }
-  .promo-code-main { grid-column: 2; grid-row: 1; }
-  .promo-code-card p { grid-column: 1/-1; grid-row: 2; }
+  .promo-code-card { grid-template-columns: minmax(0,1fr); row-gap: 9px; min-height: 0; padding: 12px; }
+  .promo-code-status,.promo-code-main,.promo-code-card p { grid-column: 1; }
+  .promo-code-main { grid-row: auto; }
+  .promo-code-card p { grid-row: auto; }
   .promo-code-card p { font-size: 10px; }
-  .promo-code-main { margin: 12px 0 8px; }
+  .promo-code-main { margin: 0; }
   .promo-code-main>b { font-size: 19px; }
   .promo-copy { padding: 5px 6px; font-size: 9px; }
   .trade-picker-controls { grid-template-columns: 1fr; }

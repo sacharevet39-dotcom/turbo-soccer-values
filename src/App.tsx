@@ -95,7 +95,7 @@ function PublicApp() {
     const { data, error } = await supabase.from('items').select('*').order('name').range(0, 999)
     if (error) setLoadError(errorMessage(error))
     else { setItems((data ?? []) as Item[]); setLoadError('') }
-    const promoResult = await supabase.from('promo_codes').select('*').order('sort_order').order('code')
+    const promoResult = await supabase.from('promo_codes').select('*').order('is_expired', { ascending: true }).order('sort_order').order('code')
     if (!promoResult.error) setPromoCodes((promoResult.data ?? []) as PromoCode[])
     setLoading(false)
   }, [])
@@ -256,14 +256,16 @@ function AdminIdentities() {
 
 function PromoCodeShowcase({ codes, loading }: { codes: PromoCode[]; loading: boolean }) {
   const [copied, setCopied] = useState('')
-  async function copyCode(code: string) {
-    try { await navigator.clipboard.writeText(code); setCopied(code); window.setTimeout(() => setCopied(current => current === code ? '' : current), 1600) }
+  async function copyPromoText(entry: PromoCode, mode: 'code' | 'details') {
+    const key = `${entry.id}:${mode}`
+    const text = mode === 'code' ? entry.code : `${entry.code}\n${entry.reward}`
+    try { await navigator.clipboard.writeText(text); setCopied(key); window.setTimeout(() => setCopied(current => current === key ? '' : current), 1600) }
     catch { setCopied('') }
   }
   return <section className="promo-showcase" aria-label="Promo codes">
     {codes.length ? <div className="promo-code-grid">{codes.map(entry => <article className={`promo-code-card${entry.is_expired ? ' expired' : ''}`} key={entry.id}>
       <div className="promo-code-status"><span aria-hidden="true">{entry.is_expired ? '❌' : '✅'}</span>{entry.is_expired ? 'Expired' : 'Available'}</div>
-      <div className="promo-code-main"><b>{entry.code}</b><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyCode(entry.code)} aria-label={`Copy ${entry.code}`}>{copied === entry.code ? 'Copied' : 'Copy'}</button></div>
+      <div className="promo-code-main"><b>{entry.code}</b><div className="promo-code-actions"><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyPromoText(entry, 'code')} aria-label={`Copy code ${entry.code}`}>{copied === `${entry.id}:code` ? 'Copied' : 'Copy code'}</button><button type="button" className="promo-copy" disabled={entry.is_expired} onClick={() => void copyPromoText(entry, 'details')} aria-label={`Copy ${entry.code} and its reward text`}>{copied === `${entry.id}:details` ? 'Copied' : 'Copy text'}</button></div></div>
       <p>{entry.reward}</p>
     </article>)}</div> : <p className="promo-showcase-empty">{loading ? 'Loading promo codes…' : 'No promo codes are listed right now.'}</p>}
   </section>
@@ -441,7 +443,7 @@ function Admin() {
       const result = await supabase.from('items').select('*').order('name').range(0, 999)
       if (result.error) setNotice(`Could not load items: ${errorMessage(result.error)}`)
       else setItems((result.data ?? []) as Item[])
-      const promoResult = await supabase.from('promo_codes').select('*').order('sort_order').order('code')
+      const promoResult = await supabase.from('promo_codes').select('*').order('is_expired', { ascending: true }).order('sort_order').order('code')
       if (!promoResult.error) setPromoCodes((promoResult.data ?? []) as PromoCode[])
       const hidden = await supabase.from('admin_hidden_catalog_images').select('image_path')
       if (!hidden.error) setHiddenImages((hidden.data ?? []).map(row => row.image_path))
