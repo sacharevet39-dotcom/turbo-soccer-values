@@ -5,3 +5,5 @@ alter table public.items
 
 comment on column public.items.demand is
   'Optional community demand rating from 1 (low) to 5 (high) stars.';
+
+notify pgrst, 'reload schema';

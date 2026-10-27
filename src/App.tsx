@@ -111,10 +111,8 @@ function PublicApp() {
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-car-frame">
-            <img src="https://tr.rbxcdn.com/180DAY-de7403f612ee9df3b6328da11e20792b/512/512/Image/Png/noFilter" alt="" />
-            <span className="car-frame-label">TURBO SOCCER · CAR SOCCER</span>
+            <img src="/brand/turbo-soccer-hero.png" alt="" />
           </div>
-          <div className="hero-fennec-card"><img src="/brand/octane-fennec.jpg" alt="Deux voitures Octane et Fennec" /><span>OCTANE · FENNEC</span></div>
           <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
           <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
         </div>
@@ -277,6 +275,7 @@ function TradeCalculator({ items, left, right, setLeft, setRight }: { items: Ite
     const list = side === 'left' ? left : right
     const set = side === 'left' ? setLeft : setRight
     const existing = list.find(line => line.id === id)
+    if (!existing && list.length >= 9) return
     set(existing ? list.map(line => line.id === id ? { ...line, quantity: line.quantity + 1 } : line) : [...list, { id, quantity: 1 }])
     setChoice({ ...choice, [side]: '' })
   }
@@ -293,7 +292,24 @@ function TradeCalculator({ items, left, right, setLeft, setRight }: { items: Ite
 }
 
 function TradeSide({ title, tint, items, lines, value, onChange, onAdd, onUpdate }: { title: string; tint: 'blue' | 'lime'; items: Item[]; lines: TradeLine[]; value: string; onChange: (v: string) => void; onAdd: () => void; onUpdate: (id: string, quantity: number) => void }) {
-  return <div className={`trade-side ${tint}`}><div className="side-header"><span>{title}</span><CoinValue value={lines.reduce((s, l) => s + (items.find(i => i.id === l.id)?.value ?? 0) * l.quantity, 0)} compact /></div><div className="add-item-row"><select value={value} onChange={e => onChange(e.target.value)} aria-label={`Select item for ${title.toLowerCase()}`}><option value="">Choose an item...</option>{items.map(i => <option key={i.id} value={i.id}>{i.name}{i.value === null ? ' · No value' : ` · ${formatValue(i.value)}`}</option>)}</select><button className="add-item-button" onClick={onAdd} disabled={!value} aria-label="Add selected item"><Plus size={17} /></button></div><div className="trade-lines">{lines.length ? lines.map(line => { const item = items.find(i => i.id === line.id); if (!item) return null; return <div className="trade-line" key={line.id}><div className="trade-line-image">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}</div><div className="trade-line-name"><b>{item.name}</b><span>{formatValue(item.value)} each</span></div><div className="quantity-control"><button onClick={() => onUpdate(line.id, line.quantity - 1)} aria-label="Decrease quantity"><Minus size={12} /></button><span>{line.quantity}</span><button onClick={() => onUpdate(line.id, line.quantity + 1)} aria-label="Increase quantity"><Plus size={12} /></button></div><CoinValue value={(item.value ?? 0) * line.quantity} compact className="line-total" /></div> }) : <div className="trade-empty"><span><Plus size={16} /></span><b>Nothing added yet</b><small>Choose an item above to start</small></div>}</div></div>
+  const selectedItems = lines.map(line => ({ line, item: items.find(entry => entry.id === line.id) })).filter((entry): entry is { line: TradeLine; item: Item } => Boolean(entry.item))
+  const total = selectedItems.reduce((sum, { line, item }) => sum + (item.value ?? 0) * line.quantity, 0)
+  return <section className={`trade-side ${tint}`}>
+    <div className="side-header"><span>{title}</span><CoinValue value={total} compact /></div>
+    <div className="add-item-row"><select value={value} onChange={e => onChange(e.target.value)} aria-label={`Select item for ${title.toLowerCase()}`}><option value="">Choose an item…</option>{items.map(item => <option key={item.id} value={item.id}>{item.name}{item.value === null ? ' · Not valued' : ` · ${formatValue(item.value)}`}</option>)}</select><button type="button" className="add-item-button" onClick={onAdd} disabled={!value || (!lines.some(line => line.id === value) && lines.length >= 9)} aria-label="Add selected item"><Plus size={17} /></button></div>
+    <div className="trade-board" aria-label={`${title}: up to nine items`}>
+      {Array.from({ length: 9 }, (_, index) => {
+        const entry = selectedItems[index]
+        if (!entry) return <div className="trade-slot-empty" key={`empty-${index}`}><Plus size={16} /><span>Empty slot</span></div>
+        const { item, line } = entry
+        return <article className="trade-item-tile" key={line.id}>
+          <div className="trade-tile-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} /> : <ImagePlus size={23} />}<span className="trade-tile-price">{item.value == null ? 'Not valued' : <CoinValue value={item.value} compact />}</span></div>
+          <b className="trade-tile-name" title={item.name}>{item.name}</b>
+          <div className="trade-tile-controls"><button type="button" onClick={() => onUpdate(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}><Minus size={12} /></button><span>{line.quantity}</span><button type="button" onClick={() => onUpdate(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`}><Plus size={12} /></button></div>
+        </article>
+      })}
+    </div>
+  </section>
 }
 
 function Admin() {
@@ -309,6 +325,7 @@ function Admin() {
   const [loginError, setLoginError] = useState('')
   const [notice, setNotice] = useState('')
   const [items, setItems] = useState<Item[]>([])
+  const [hiddenImages, setHiddenImages] = useState<string[]>([])
   const [form, setForm] = useState<FormState>(blankForm)
   const [editing, setEditing] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
@@ -330,6 +347,8 @@ function Admin() {
       const result = await supabase.from('items').select('*').order('name').range(0, 999)
       if (result.error) setNotice(`Could not load items: ${errorMessage(result.error)}`)
       else setItems((result.data ?? []) as Item[])
+      const hidden = await supabase.from('admin_hidden_catalog_images').select('image_path')
+      if (!hidden.error) setHiddenImages((hidden.data ?? []).map(row => row.image_path))
     }
     setChecking(false)
   }, [])
@@ -440,6 +459,28 @@ function Admin() {
     else setNotice(`Uploaded image permanently deleted.${affectedItems}`)
     setBusy(false)
   }
+  async function removeImageFromLibrary(imagePath: string) {
+    if (!supabase) return
+    const { data: references, error: referenceError } = await supabase.from('items').select('id').eq('image_path', imagePath)
+    if (referenceError) { setNotice(`Could not check items using this image: ${errorMessage(referenceError)}`); return }
+    const { error: hideError } = await supabase.from('admin_hidden_catalog_images').insert({ image_path: imagePath })
+    if (hideError) {
+      setNotice(hideError.code === '42P01' || hideError.code === 'PGRST205' ? 'Run Supabase migration 202610270003_seed_game_item_catalogue.sql to enable image-library removal.' : errorMessage(hideError))
+      return
+    }
+    if (references?.length) {
+      const { error } = await supabase.from('items').update({ image_path: null }).eq('image_path', imagePath)
+      if (error) {
+        await supabase.from('admin_hidden_catalog_images').delete().eq('image_path', imagePath)
+        setNotice(`Image was kept in the library because linked items could not be updated: ${errorMessage(error)}`)
+        return
+      }
+      setItems(current => current.map(item => item.image_path === imagePath ? { ...item, image_path: null } : item))
+    }
+    setHiddenImages(current => [...current, imagePath])
+    setForm(current => current.image_path === imagePath ? { ...current, image_path: '' } : current)
+    setNotice(`Image removed from the library.${references?.length ? ` ${references.length} item${references.length === 1 ? '' : 's'} kept and unlinked.` : ''}`)
+  }
   function exportCsv() {
     const rows = [['name','value','image_path','category','rarity','description','created_at','updated_at'], ...items.map(i => [i.name, i.value ?? '', i.image_path ?? '', i.category ?? '', i.rarity ?? '', i.description ?? '', i.created_at, i.updated_at])]
     const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
@@ -453,7 +494,7 @@ function Admin() {
   if (profile?.must_change_password) return <AdminShell><div className="setup-panel password-change-panel"><div className="login-emblem"><ShieldCheck size={21} /></div><div className="eyebrow section-eyebrow">FIRST SIGN IN</div><h1>Choose your<br />new password.</h1><p>You must replace the temporary password before managing items.</p><form className="admin-form" onSubmit={finishPasswordChange}><label>New password<input type="password" required minLength={ADMIN_PASSWORD_MIN_LENGTH} autoComplete="new-password" value={firstPassword} onChange={e => setFirstPassword(e.target.value)} /></label>{notice && <div className="form-error" role="status">{notice}</div>}<button className="primary-button full-button" disabled={busy}>{busy ? 'Updating…' : 'Set new password'} <Check size={16} /></button></form><button className="text-button" onClick={() => void signOut()}>Sign out</button></div></AdminShell>
 
   const adminItems = items.filter(item => item.name.toLowerCase().includes(filter.toLowerCase()))
-  const availableImages = [...new Set([...sourceImages, ...items.map(item => item.image_path).filter((path): path is string => Boolean(path))])]
+  const availableImages = [...new Set([...sourceImages, ...items.map(item => item.image_path).filter((path): path is string => Boolean(path))])].filter(path => !hiddenImages.includes(path))
   const visibleImages = availableImages.filter(path => path.toLowerCase().includes(imageSearch.trim().toLowerCase()))
   const selectedImage = itemImage(form.image_path)
   const selectedUpload = uploadedImageObjectPath(form.image_path)
@@ -467,7 +508,7 @@ function Admin() {
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
         {form.image_path && <div className="image-current-preview"><div className="image-current-art">{selectedImage ? <img src={selectedImage} alt="Selected item" /> : <ImagePlus size={24} />}</div><div className="image-current-details"><b>Selected image</b><small>{selectedUpload ? selectedUpload.split('/').pop() : form.image_path.split('/').pop()}</small><div className="image-current-actions"><button type="button" className="secondary-button" onClick={() => setForm(current => ({ ...current, image_path: '' }))}><X size={14} /> Remove from item</button>{selectedUpload && <button type="button" className="delete-image-button" disabled={busy} onClick={() => void deleteUploadedImage()}><Trash2 size={14} /> Delete uploaded photo</button>}</div></div></div>}
         <label className="image-search"><Search size={15} /><input placeholder="Search images by filename..." value={imageSearch} onChange={e => setImageSearch(e.target.value)} /><span>{visibleImages.length}</span></label>
-        <div className="image-options">{visibleImages.map(src => { const uploaded = Boolean(uploadedImageObjectPath(src)); return <div key={src} className="image-option-wrap"><button type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button>{uploaded && <button type="button" className="image-option-delete" title="Delete uploaded image (linked items will lose their image)" aria-label={`Delete uploaded image ${src.split('/').pop()}`} disabled={busy} onClick={() => void deleteUploadedImage(src)}><X size={13} /></button>}</div> })}</div>
+        <div className="image-options">{visibleImages.map(src => { const uploaded = Boolean(uploadedImageObjectPath(src)); return <div key={src} className="image-option-wrap"><button type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button><button type="button" className="image-option-delete" title="Remove image from library (also unlinks catalogue items)" aria-label={`Remove image from library ${src.split('/').pop()}`} disabled={busy} onClick={() => void (uploaded ? deleteUploadedImage(src) : removeImageFromLibrary(src))}><X size={13} /></button></div> })}</div>
         {!visibleImages.length && <div className="image-library-empty">No images match that search.</div>}
         <label className="upload-button"><Upload size={14} /> {uploading ? 'Uploading…' : 'Upload new photo'}<input type="file" accept="image/webp,image/png,image/jpeg,image/gif" disabled={uploading} onChange={e => { void uploadImage(e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
       </div>

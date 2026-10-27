@@ -506,6 +506,48 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .image-option-delete { width: 21px; height: 21px; }
 }
 
+/* The new transparent montage replaces the stock car art in the hero. */
+.hero-car-frame { width: min(590px, 92%); height: clamp(190px, 21vw, 270px); overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; animation: car-float 7s ease-in-out infinite; }
+.hero-car-frame:before, .hero-car-frame:after { display: none; }
+.hero-car-frame img { width: 100%; height: 100%; object-fit: contain; filter: none; }
+.hero-fennec-card { display: none; }
+
+/* Two offer boards, each with nine square item slots and an overlaid value. */
+.trade-side { min-height: 0; }
+.trade-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+.trade-slot-empty, .trade-item-tile { min-width: 0; aspect-ratio: 1; border: 1px dashed #67458a; border-radius: 9px; overflow: hidden; }
+.trade-slot-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 5px; background: #25074488; color: #b69ac9; font-size: 9px; }
+.trade-item-tile { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto 28px; padding: 6px; border-style: solid; border-color: #664187; background: #21033be8; }
+.trade-tile-art { position: relative; min-height: 0; display: grid; place-items: center; overflow: hidden; border-radius: 6px; background: linear-gradient(145deg, #444, #292929); }
+.trade-tile-art > img { width: 100%; height: 100%; padding: 8px; object-fit: contain; }
+.trade-tile-art > svg { color: #c3a7d6; }
+.trade-tile-price { position: absolute; right: 4px; bottom: 4px; max-width: calc(100% - 8px); padding: 3px 6px; border: 1px solid #ffffff36; border-radius: 99px; background: #17131ee8; color: white; font-size: 9px; letter-spacing: 0; white-space: nowrap; }
+.trade-tile-price .coin-value { color: #fff; font-size: 9px; gap: 3px; }
+.trade-tile-price .coin-value img { width: 13px; height: 13px; }
+.trade-tile-name { align-self: center; min-width: 0; padding: 5px 2px 2px; overflow: hidden; color: #fff; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.trade-tile-controls { display: flex; align-items: center; justify-content: center; gap: 13px; }
+.trade-tile-controls button { width: 23px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid #714a91; border-radius: 5px; background: #3c125b; color: #fff; cursor: pointer; }
+.trade-tile-controls button:hover { border-color: var(--lime); color: var(--lime); }
+.trade-tile-controls span { min-width: 12px; color: #eee; font-size: 10px; text-align: center; }
+.owner-empty-state { display: flex; align-items: center; min-height: 75px; padding: 10px 14px; border: 1px solid #75419c; border-radius: 10px; background: #28084a; }
+.owner-empty-state .admin-submessage { margin: 0; line-height: 1.6; }
+.owner-danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 20px; padding: 16px; border: 1px solid #764747; border-radius: 10px; background: #321b27; }
+.owner-danger-zone > div { display: grid; gap: 5px; }
+.owner-danger-zone b { color: #ffd6d6; font-size: 12px; }
+.owner-danger-zone span { color: #d5b6c0; font-size: 10px; }
+.owner-danger-zone button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 1px solid #a36565; border-radius: 8px; background: #502a35; color: #ffe2e2; font-size: 10px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.owner-danger-zone button:hover:not(:disabled) { background: #723847; }
+.owner-danger-zone button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 700px) {
+  .hero-car-frame { height: 180px; }
+  .trade-board { gap: 5px; padding: 8px; }
+  .trade-item-tile { grid-template-rows: minmax(0, 1fr) auto 24px; padding: 4px; }
+  .trade-tile-name { font-size: 8px; }
+  .trade-tile-controls { gap: 6px; }
+  .trade-tile-price { font-size: 8px; }
+  .owner-danger-zone { align-items: flex-start; flex-direction: column; }
+}
+
 @keyframes car-float {
   0%, 100% { transform: translateY(0) rotate(-2deg); }
   50% { transform: translateY(-5px) rotate(-1deg); }
