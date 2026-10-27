@@ -591,3 +591,118 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .hero { min-height: 340px; }
   .hero-copy { padding: 23px 0; }
 }
+
+/* Keep the title, car banner, and item montage in separate lanes at every width. */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(220px, .78fr) minmax(280px, 1fr);
+  align-items: center;
+  gap: clamp(18px, 2.4vw, 38px);
+  min-height: 292px;
+  overflow: hidden;
+  padding: 22px 0;
+}
+.hero-copy { min-width: 0; padding: 18px 0; }
+.hero h1 { font-size: clamp(43px, 4.6vw, 66px); }
+.hero-copy > p { max-width: 340px; }
+.hero-meta { margin-top: 18px; }
+.hero-meta > a { min-height: 40px; }
+.hero-feature-art {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  aspect-ratio: 463 / 223;
+  transform: none;
+  animation: none;
+}
+.hero-art {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: clamp(150px, 15vw, 220px);
+  overflow: hidden;
+  opacity: 1;
+  transform: none;
+}
+.hero-car-frame {
+  width: 100%;
+  height: 100%;
+  animation: none;
+}
+.art-stat { display: none; }
+
+/* Larger, clearly clickable controls in the admin item editor. */
+.image-options {
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 11px;
+  max-height: 440px;
+  padding: 5px;
+}
+.image-option-wrap { min-width: 0; aspect-ratio: 1; }
+.image-option-wrap .image-option { width: 100%; height: 100%; aspect-ratio: 1; }
+.image-option-delete {
+  top: 5px;
+  right: 5px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #f1d8d8;
+  background: #7e2929;
+  color: #fff;
+  box-shadow: 0 2px 10px #000b;
+  pointer-events: auto;
+}
+.image-option-delete:hover:not(:disabled) { border-color: #fff; background: #c64237; transform: scale(1.06); }
+.image-option-delete:focus-visible { outline: 3px solid #ffd166; outline-offset: 2px; }
+.demand-field { display: grid; justify-items: start; gap: 7px; }
+.demand-label { color: #f3e6fa; font-size: 14px; font-weight: 800; }
+.demand-field > small { color: #d0b9df; font-size: 11px; }
+.demand-stars.interactive { min-height: 48px; gap: 8px; }
+.demand-stars.interactive > button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #8053a0;
+  border-radius: 9px;
+  background: #2d0b4e;
+  color: #a996b5;
+  transition: color .14s ease, border-color .14s ease, background-color .14s ease, transform .14s ease;
+}
+.demand-stars.interactive > button[data-active="true"] {
+  border-color: #e2b943;
+  background: #554218;
+  color: #ffd166;
+}
+.demand-stars.interactive > button[aria-checked="true"] { box-shadow: 0 0 0 3px #ffd16630; }
+.demand-stars.interactive > button:hover { transform: translateY(-1px); }
+.demand-stars.interactive .demand-current { min-width: 38px; color: #ffe08b; font-size: 13px; font-weight: 900; text-align: center; }
+.demand-stars.interactive .clear-demand { width: auto; min-width: 54px; padding: 0 10px; border-color: #785894; background: #38115b; color: #eee1f5; font-size: 11px; }
+
+@media (max-width: 1100px) {
+  .hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 360px;
+    row-gap: 12px;
+  }
+  .hero-copy { grid-column: 1 / -1; padding: 14px 0 0; }
+  .hero-feature-art { width: min(100%, 470px); justify-self: center; }
+  .hero-art { height: clamp(145px, 20vw, 205px); }
+}
+@media (max-width: 600px) {
+  .hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+    gap: 8px 12px;
+    padding: 24px 0 17px;
+  }
+  .hero-copy { padding: 0 0 8px; }
+  .hero h1 { font-size: clamp(42px, 12vw, 54px); }
+  .hero-copy > p { font-size: 12px; }
+  .hero-meta { margin-top: 14px; }
+  .hero-meta > a { min-height: 36px; padding: 7px 9px; font-size: 9px; }
+  .hero-feature-art { width: 100%; }
+  .hero-art { height: auto; aspect-ratio: 1.45; }
+  .hero-car-frame { height: 100%; }
+  .image-options { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 300px; }
+  .image-option-delete { width: 32px; height: 32px; }
+  .demand-stars.interactive { gap: 6px; }
+  .demand-stars.interactive > button { width: 39px; height: 39px; }
+}
