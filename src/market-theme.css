@@ -437,6 +437,17 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .item-grid-sparse.sparse-2, .item-grid-sparse.sparse-3 { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Keep item artwork square and centered in every public and admin image slot. */
+.card-visual { aspect-ratio: 1 / 1; height: auto; display: grid; place-items: center; }
+.card-visual > img { object-fit: contain; object-position: center; }
+.image-option { aspect-ratio: 1 / 1; height: auto; min-width: 0; }
+.image-option img, .image-current-art img, .preview-image img, .catalogue-thumb img {
+  object-fit: contain;
+  object-position: center;
+}
+.detail-art-wrap { aspect-ratio: 1 / 1; min-height: 0; display: grid; place-items: center; }
+.detail-art { object-fit: contain; object-position: center; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; }
