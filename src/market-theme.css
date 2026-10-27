@@ -46,8 +46,8 @@ body {
 main { padding: 0 clamp(18px, 3vw, 52px); }
 
 .hero {
-  width: min(1480px, 100%);
-  min-height: 208px;
+  width: min(2100px, 100%);
+  min-height: 250px;
   margin: 0 auto;
   border-color: #373737;
 }
@@ -72,8 +72,8 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .hero-art { right: 4%; width: 42%; opacity: .92; }
 .hero-car-frame {
   position: relative;
-  width: min(330px, 78%);
-  height: 184px;
+  width: min(430px, 78%);
+  height: 210px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -99,7 +99,7 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .stat-bottom b { color: #fff; font-size: 8px; }
 
 .content-section {
-  width: min(1480px, 100%);
+  width: min(2100px, 100%);
   margin: 0 auto;
   padding: 25px 0 58px;
 }
@@ -214,7 +214,7 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .admin-shell { background: #191919; }
 .admin-topbar { background: #242424; }
 .admin-back { color: #c1c1c1; }
-.admin-dashboard { max-width: 1660px; }
+.admin-dashboard { max-width: 2100px; }
 .admin-header h1, .panel-heading h2, .login-card h1, .setup-panel h1, .unauthorized h1 { color: #f2f2f2; text-shadow: none; }
 .admin-panel, .self-settings, .owner-management, .login-card, .setup-panel, .unauthorized, .account-edit-card {
   background: #222;
@@ -295,6 +295,41 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .online-text { color: #c8f15a; }
 .offline-text { color: #999; }
 
+.account-list-toolbar { display: flex; align-items: center; gap: 10px; margin: 17px 0 10px; }
+.account-search { min-width: 220px; min-height: 39px; display: flex; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid #484848; border-radius: 7px; background: #2b2b2b; color: #aaa; flex: 1; }
+.account-search input { width: 100%; min-width: 0; height: 36px; border: 0; outline: 0; background: transparent; color: #f2f2f2; font-size: 11px; }
+.account-search input::placeholder { color: #999; }
+.account-status-filter { min-height: 39px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid #484848; border-radius: 7px; background: #2b2b2b; color: #aaa; font-size: 10px; }
+.account-status-filter select { border: 0; outline: 0; background: transparent; color: #eee; font-size: 10px; }
+.account-status-filter option { background: #242424; }
+.account-list-count { color: #999; font-size: 10px; white-space: nowrap; }
+.danger-action { border-color: #654747 !important; background: #382a2a !important; color: #edcccc !important; }
+.danger-action:hover:not(:disabled) { border-color: #9a6666 !important; background: #493131 !important; }
+
+@media (min-width: 1600px) {
+  .item-grid, .loading-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 15px; }
+  .hero { min-height: 278px; }
+  .hero-copy { padding: 39px 0; }
+  .hero h1 { font-size: clamp(58px, 4.3vw, 76px); }
+  .hero-art { right: 5%; width: 45%; }
+  .hero-car-frame { width: min(500px, 78%); height: 232px; }
+  .card-visual { height: clamp(140px, 10vw, 190px); }
+  .item-card-heading h3 { font-size: 13px; }
+  .card-info { padding: 12px 13px 14px; }
+  .admin-header h1 { font-size: 48px; }
+  .admin-layout { grid-template-columns: minmax(520px, .9fr) minmax(700px, 1.1fr); gap: 22px; }
+  .image-options { grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 540px; }
+  .image-option { height: 120px; }
+  .preview-box { padding: 16px; }
+  .preview-image { width: 112px; height: 112px; }
+  .owner-account-row { gap: 14px; }
+  .account-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
+@media (min-width: 2100px) {
+  .item-grid, .loading-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 16px; }
+  .hero-art { right: 7%; }
+}
+
 @media (max-width: 1250px) {
   .item-grid, .loading-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
@@ -344,6 +379,10 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .admin-topbar { padding: 0 13px; }
   .admin-dashboard { padding: 24px 13px 42px; }
   .admin-layout { grid-template-columns: 1fr; }
+  .account-list-toolbar { align-items: stretch; flex-direction: column; }
+  .account-search { min-width: 0; }
+  .account-status-filter { justify-content: space-between; }
+  .account-list-count { align-self: flex-end; }
   .editor-panel, .catalogue-panel, .self-settings, .owner-management { padding: 14px; }
   .image-options { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 290px; }
   .image-option { height: 76px; }
@@ -357,6 +396,17 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .catalogue-value.coin-value { min-width: 60px; }
   .footer { padding: 14px; flex-wrap: wrap; gap: 8px 13px; }
   .footer > span:nth-child(2) { margin-left: 0; }
+}
+
+@media (max-width: 360px) {
+  .brand-logo { width: 72px; }
+  .main-nav { gap: 4px; }
+  .nav-link { font-size: 8px; }
+  .live-pill { display: none; }
+  .item-grid, .loading-grid { grid-template-columns: 1fr; }
+  .card-visual { height: 180px; }
+  .create-admin-form { grid-template-columns: 1fr !important; }
+  .create-admin-form > .primary-button { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
