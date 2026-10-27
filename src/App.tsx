@@ -342,11 +342,16 @@ function ItemCard({ item }: { item: Item }) {
 function DemandStars({ rating, interactive = false, onChange }: { rating: number | null; interactive?: boolean; onChange?: (value: number | null) => void }) {
   return <div className={`demand-stars${interactive ? ' interactive' : ''}${rating == null ? ' unrated' : ''}`} role={interactive ? 'radiogroup' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5 stars`}>
     {Array.from({ length: 5 }, (_, index) => {
-      const value = index + 1
-      const active = rating != null && value <= rating
-      return interactive
-        ? <button key={value} type="button" role="radio" aria-checked={rating === value} data-active={active} aria-label={`${value} out of 5 stars`} onClick={() => onChange?.(value)}><Star size={21} strokeWidth={2.25} fill={active ? 'currentColor' : 'none'} /></button>
-        : <Star key={value} size={15} strokeWidth={2} fill={active ? 'currentColor' : 'none'} aria-hidden="true" />
+      const fill = Math.max(0, Math.min(1, (rating ?? 0) - index))
+      const size = interactive ? 21 : 15
+      return <span className="demand-star" key={index} aria-hidden={interactive ? undefined : true}>
+        <Star className="demand-star-empty" size={size} strokeWidth={interactive ? 2.25 : 2} />
+        <Star className="demand-star-filled" size={size} strokeWidth={interactive ? 2.25 : 2} style={{ clipPath: `inset(0 ${(1 - fill) * 100}% 0 0)` }} />
+        {interactive && <>
+          <button type="button" className="demand-half-button demand-half-left" role="radio" aria-checked={rating === index + 0.5} aria-label={`${index + 0.5} out of 5 stars`} onClick={() => onChange?.(index + 0.5)} />
+          <button type="button" className="demand-half-button demand-half-right" role="radio" aria-checked={rating === index + 1} aria-label={`${index + 1} out of 5 stars`} onClick={() => onChange?.(index + 1)} />
+        </>}
+      </span>
     })}
     {interactive && <span className="demand-current" aria-live="polite">{rating == null ? '—' : `${rating}/5`}</span>}
     {interactive && rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
