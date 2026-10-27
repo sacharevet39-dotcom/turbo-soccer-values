@@ -410,7 +410,7 @@ function TradeSide({ title, tint, items, lines, onAdd, onUpdate }: { title: stri
         if (!entry) return <div className="trade-slot-empty" key={`empty-${index}`}><Plus size={16} /><span>Empty slot</span></div>
         const { item, line } = entry
         return <article className="trade-item-tile" key={line.id}>
-          <div className="trade-tile-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} /> : <ImagePlus size={23} />}{item.variant_color_hex && <i className="trade-variant-band" style={{ backgroundColor: item.variant_color_hex }} />}{item.value == null ? <span className="trade-tile-price">Not valued</span> : <span className="trade-tile-price"><CoinValue value={item.value} compact /></span>}</div>
+          <div className="trade-tile-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt={item.name} /> : <ImagePlus size={23} />}{item.variant_color_hex && <i className="trade-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} />}{item.value == null ? <span className="trade-tile-price">Not valued</span> : <span className="trade-tile-price"><CoinValue value={item.value} compact /></span>}</div>
           <b className="trade-tile-name" title={item.name}>{item.name}</b>
           <div className="trade-tile-controls"><button type="button" onClick={() => onUpdate(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}><Minus size={12} /></button><span>{line.quantity}</span><button type="button" onClick={() => onUpdate(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`}><Plus size={12} /></button></div>
         </article>
