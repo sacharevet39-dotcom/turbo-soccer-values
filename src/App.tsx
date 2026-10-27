@@ -67,7 +67,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
     </nav>
-    <div className="top-actions"><OnlineCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
+    <div className="top-actions"><OnlineCount /><VisitCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
   </header>
 }
 
@@ -195,6 +195,55 @@ function OnlineCount() {
     return () => { active = false; window.clearInterval(timer) }
   }, [])
   return count === null ? null : <span className="live-pill visitor-count"><span /> {count} online</span>
+}
+
+function VisitCount() {
+  const [total, setTotal] = useState<number | null>(null)
+  const [added, setAdded] = useState(false)
+  useEffect(() => {
+    let active = true
+    let lastTotal: number | null = null
+    let flashTimer = 0
+    const flash = () => {
+      setAdded(true)
+      window.clearTimeout(flashTimer)
+      flashTimer = window.setTimeout(() => setAdded(false), 2200)
+    }
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/visitors', { cache: 'no-store' })
+        if (!response.ok) return
+        const result = await response.json() as { total?: unknown }
+        if (active && typeof result.total === 'number') {
+          if (lastTotal !== null && result.total > lastTotal) flash()
+          lastTotal = result.total
+          setTotal(result.total)
+        }
+      } catch { /* Visitor totals are optional when Pages Functions are unavailable. */ }
+    }
+    const register = async () => {
+      try {
+        let visitId = sessionStorage.getItem('tvs-visit-session-id') ?? ''
+        if (!/^[0-9a-f-]{36}$/i.test(visitId)) {
+          visitId = crypto.randomUUID()
+          sessionStorage.setItem('tvs-visit-session-id', visitId)
+        }
+        const response = await fetch('/api/visitors', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ visitId }) })
+        if (!response.ok) { await refresh(); return }
+        const result = await response.json() as { total?: unknown; counted?: unknown }
+        if (active && typeof result.total === 'number') {
+          lastTotal = result.total
+          setTotal(result.total)
+          if (result.counted === true) flash()
+        }
+      } catch { await refresh() }
+    }
+    void register()
+    const timer = window.setInterval(() => void refresh(), 30000)
+    return () => { active = false; window.clearInterval(timer); window.clearTimeout(flashTimer) }
+  }, [])
+  if (total === null) return null
+  return <span className="live-pill visit-total" aria-label={`${total.toLocaleString()} total site visits`}><span className="visit-total-dot" /> <strong key={total}>{total.toLocaleString()}</strong><span className="visit-total-label">visits</span> {added && <b className="visit-increment">+1</b>}</span>
 }
 
 function AdminIdentities() {

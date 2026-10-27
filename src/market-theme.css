@@ -775,6 +775,13 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .site-topbar .admin-link { transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
 .site-topbar .admin-link:hover { transform: translateY(-2px); box-shadow: 0 5px 14px #0005; }
 .site-topbar .admin-link.active { border-color: #737373; background: #424242; }
+.site-topbar .top-actions { gap: 8px; }
+.site-topbar .visit-total { gap: 6px; white-space: nowrap; }
+.site-topbar .visit-total-dot { background: #f5c84b; box-shadow: 0 0 8px #f5c84b66; }
+.site-topbar .visit-total strong { color: #f4f4f4; font-variant-numeric: tabular-nums; animation: visit-number-pop .24s ease-out both; }
+.site-topbar .visit-increment { color: var(--lime); font-size: 10px; animation: visit-increment-in .22s ease-out both; }
+@keyframes visit-number-pop { from { opacity: .5; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes visit-increment-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .mobile-menu-toggle { display: none; }
 @keyframes navbar-arrive { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @keyframes nav-item-enter { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
@@ -798,8 +805,13 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .site-topbar .brand-tagline { display: none; }
   .site-topbar .mobile-menu-toggle { gap: 4px; padding-inline: 7px; }
   .site-topbar .top-actions .live-pill { display: none; }
+  .site-topbar .top-actions .visit-total { display: inline-flex; padding: 7px 8px; gap: 4px; font-size: 9px; }
+}
+@media (max-width: 360px) {
+  .site-topbar .top-actions .visit-total { display: inline-flex; }
+  .site-topbar .top-actions .visit-total-label { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .site-topbar, .site-topbar .main-nav.open .nav-link { animation: none; }
+  .site-topbar, .site-topbar .main-nav.open .nav-link, .site-topbar .visit-total strong, .site-topbar .visit-increment { animation: none; }
   .site-topbar .brand-logo, .site-topbar .nav-link, .site-topbar .nav-link:after, .site-topbar .admin-link, .mobile-menu-toggle svg, .site-topbar .main-nav { transition: none; }
 }
