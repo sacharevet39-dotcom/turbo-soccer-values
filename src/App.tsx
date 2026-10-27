@@ -104,10 +104,10 @@ function PublicApp() {
     </header>
     <main>
       <section className="hero">
-        <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> TURBO SOCCER VALUES</div>
+        <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> ITEM VALUES</div>
           <h1>Turbo Soccer<br /><span>market</span></h1>
-          <p>Check item values, then compare both sides before you trade.</p>
-          <div className="hero-meta"><span>Values shared by the community</span><span className="meta-separator" /><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
+          <p>Check values before you trade.</p>
+          <div className="hero-meta"><a href="https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0" target="_blank" rel="noreferrer">Play Turbo Soccer <ExternalLink size={13} /></a></div>
         </div>
         <div className="hero-feature-art" aria-hidden="true">
           <img src="/brand/turbo-soccer-feature.png" alt="" />
@@ -116,8 +116,6 @@ function PublicApp() {
           <div className="hero-car-frame">
             <img src="/brand/turbo-soccer-hero.png" alt="" />
           </div>
-          <div className="art-stat stat-top"><ArrowLeftRight size={14} /><span>TRADE CALCULATOR</span></div>
-          <div className="art-stat stat-bottom"><span className="stat-dot" /> CARS <b>·</b> WHEELS <b>·</b> BOOSTS</div>
         </div>
       </section>
       <section className="content-section">
@@ -210,9 +208,10 @@ function DemandStars({ rating, interactive = false, onChange }: { rating: number
       const value = index + 1
       const active = rating != null && value <= rating
       return interactive
-        ? <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} out of 5 stars`} onClick={() => onChange?.(value)}><Star size={15} fill={active ? 'currentColor' : 'none'} /></button>
+        ? <button key={value} type="button" role="radio" aria-checked={rating === value} data-active={active} aria-label={`${value} out of 5 stars`} onClick={() => onChange?.(value)}><Star size={21} strokeWidth={2.25} fill={active ? 'currentColor' : 'none'} /></button>
         : <Star key={value} size={13} fill={active ? 'currentColor' : 'none'} aria-hidden="true" />
     })}
+    {interactive && <span className="demand-current" aria-live="polite">{rating == null ? '—' : `${rating}/5`}</span>}
     {interactive && rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
   </div>
 }
@@ -417,7 +416,7 @@ function Admin() {
     const demand = form.demand === '' ? null : Number(form.demand)
     const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand }
     const result = editing ? await supabase.from('items').update(payload).eq('id', editing) : await supabase.from('items').insert(payload)
-    if (result.error) setNotice(result.error.code === '23505' ? 'An item with that name already exists.' : result.error.message.toLowerCase().includes("'demand'") || result.error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 202610270002_item_demand_stars.sql before saving demand ratings.' : errorMessage(result.error))
+    if (result.error) setNotice(result.error.code === '23505' ? 'An item with that name already exists.' : result.error.message.toLowerCase().includes("'demand'") || result.error.message.toLowerCase().includes('demand column') ? 'Apply the Supabase migration 20261027032224_item_demand_stars.sql before saving demand ratings.' : errorMessage(result.error))
     else { setNotice(editing ? 'Item updated.' : 'Item added.'); setForm(blankForm); setEditing(null); await refresh() }
     setBusy(false)
   }
@@ -464,25 +463,32 @@ function Admin() {
   }
   async function removeImageFromLibrary(imagePath: string) {
     if (!supabase) return
-    const { data: references, error: referenceError } = await supabase.from('items').select('id').eq('image_path', imagePath)
-    if (referenceError) { setNotice(`Could not check items using this image: ${errorMessage(referenceError)}`); return }
-    const { error: hideError } = await supabase.from('admin_hidden_catalog_images').insert({ image_path: imagePath })
-    if (hideError) {
-      setNotice(hideError.code === '42P01' || hideError.code === 'PGRST205' ? 'Run Supabase migration 202610270003_seed_game_item_catalogue.sql to enable image-library removal.' : errorMessage(hideError))
-      return
-    }
-    if (references?.length) {
-      const { error } = await supabase.from('items').update({ image_path: null }).eq('image_path', imagePath)
-      if (error) {
-        await supabase.from('admin_hidden_catalog_images').delete().eq('image_path', imagePath)
-        setNotice(`Image was kept in the library because linked items could not be updated: ${errorMessage(error)}`)
+    setBusy(true); setNotice('')
+    try {
+      const { data: references, error: referenceError } = await supabase.from('items').select('id').eq('image_path', imagePath)
+      if (referenceError) { setNotice(`Could not check items using this image: ${errorMessage(referenceError)}`); return }
+      const { error: hideError } = await supabase.from('admin_hidden_catalog_images').insert({ image_path: imagePath })
+      if (hideError) {
+        setNotice(hideError.code === '42P01' || hideError.code === 'PGRST205' ? 'Image library setup is missing in Supabase. Apply migration 20261027032238_seed_game_item_catalogue.sql.' : errorMessage(hideError))
         return
       }
-      setItems(current => current.map(item => item.image_path === imagePath ? { ...item, image_path: null } : item))
+      if (references?.length) {
+        const { error } = await supabase.from('items').update({ image_path: null }).eq('image_path', imagePath)
+        if (error) {
+          await supabase.from('admin_hidden_catalog_images').delete().eq('image_path', imagePath)
+          setNotice(`Image was kept in the library because linked items could not be updated: ${errorMessage(error)}`)
+          return
+        }
+        setItems(current => current.map(item => item.image_path === imagePath ? { ...item, image_path: null } : item))
+      }
+      setHiddenImages(current => [...current, imagePath])
+      setForm(current => current.image_path === imagePath ? { ...current, image_path: '' } : current)
+      setNotice(`Image removed from the library.${references?.length ? ` ${references.length} item${references.length === 1 ? '' : 's'} kept and unlinked.` : ''}`)
+    } catch (error) {
+      setNotice(`Could not remove this image: ${errorMessage(error)}`)
+    } finally {
+      setBusy(false)
     }
-    setHiddenImages(current => [...current, imagePath])
-    setForm(current => current.image_path === imagePath ? { ...current, image_path: '' } : current)
-    setNotice(`Image removed from the library.${references?.length ? ` ${references.length} item${references.length === 1 ? '' : 's'} kept and unlinked.` : ''}`)
   }
   function exportCsv() {
     const rows = [['name','value','image_path','category','rarity','description','created_at','updated_at'], ...items.map(i => [i.name, i.value ?? '', i.image_path ?? '', i.category ?? '', i.rarity ?? '', i.description ?? '', i.created_at, i.updated_at])]
@@ -511,11 +517,11 @@ function Admin() {
         <div className="picker-heading"><span>Image library</span><span>{availableImages.length} photos · {visibleImages.length} shown</span></div>
         {form.image_path && <div className="image-current-preview"><div className="image-current-art">{selectedImage ? <img src={selectedImage} alt="Selected item" /> : <ImagePlus size={24} />}</div><div className="image-current-details"><b>Selected image</b><small>{selectedUpload ? selectedUpload.split('/').pop() : form.image_path.split('/').pop()}</small><div className="image-current-actions"><button type="button" className="secondary-button" onClick={() => setForm(current => ({ ...current, image_path: '' }))}><X size={14} /> Remove from item</button>{selectedUpload && <button type="button" className="delete-image-button" disabled={busy} onClick={() => void deleteUploadedImage()}><Trash2 size={14} /> Delete uploaded photo</button>}</div></div></div>}
         <label className="image-search"><Search size={15} /><input placeholder="Search images by filename..." value={imageSearch} onChange={e => setImageSearch(e.target.value)} /><span>{visibleImages.length}</span></label>
-        <div className="image-options">{visibleImages.map(src => { const uploaded = Boolean(uploadedImageObjectPath(src)); return <div key={src} className="image-option-wrap"><button type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button><button type="button" className="image-option-delete" title="Remove image from library (also unlinks catalogue items)" aria-label={`Remove image from library ${src.split('/').pop()}`} disabled={busy} onClick={() => void (uploaded ? deleteUploadedImage(src) : removeImageFromLibrary(src))}><X size={13} /></button></div> })}</div>
+        <div className="image-options">{visibleImages.map(src => { const uploaded = Boolean(uploadedImageObjectPath(src)); return <div key={src} className="image-option-wrap"><button type="button" title={src.split('/').pop()} className={form.image_path === src ? 'image-option selected' : 'image-option'} onClick={() => setForm(current => ({ ...current, image_path: current.image_path === src ? '' : src }))}><img src={itemImage(src)!} alt={src.split('/').pop()} loading="lazy" />{form.image_path === src && <span><Check size={15} /></span>}</button><button type="button" className="image-option-delete" title="Remove image from library (also unlinks catalogue items)" aria-label={`Remove image from library ${src.split('/').pop()}`} disabled={busy} onClick={event => { event.preventDefault(); event.stopPropagation(); void (uploaded ? deleteUploadedImage(src) : removeImageFromLibrary(src)) }}><X size={18} strokeWidth={2.5} /></button></div> })}</div>
         {!visibleImages.length && <div className="image-library-empty">No images match that search.</div>}
         <label className="upload-button"><Upload size={14} /> {uploading ? 'Uploading…' : 'Upload new photo'}<input type="file" accept="image/webp,image/png,image/jpeg,image/gif" disabled={uploading} onChange={e => { void uploadImage(e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
       </div>
-      <label className="demand-field">Community demand <small>optional · choose 1 to 5 stars</small><DemandStars rating={form.demand === '' ? null : Number(form.demand)} interactive onChange={rating => setForm(current => ({ ...current, demand: rating == null ? '' : String(rating) }))} /></label>
+      <div className="demand-field"><span className="demand-label">Community demand</span><small>Optional · saved with this item</small><DemandStars rating={form.demand === '' ? null : Number(form.demand)} interactive onChange={rating => setForm(current => ({ ...current, demand: rating == null ? '' : String(rating) }))} /></div>
       <label>Description <small>optional</small><textarea maxLength={2000} rows={3} placeholder="Add item details" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
       <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}{form.rarity ? ` · ${form.rarity}` : ''}</small></div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
       <button className="primary-button full-button" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add item'} <Check size={16} /></button></form></section>
