@@ -78,6 +78,20 @@ export async function onRequestPost({ request, env }: Context) {
       await rpc(env, 'turbo_owner_revoke_sessions', { p_actor: actor, p_target: target })
       return json({ ok: true })
     }
+    if (body.action === 'delete') {
+      const target = String(body.userId ?? '')
+      if (!/^[0-9a-f-]{36}$/i.test(target) || target === actor) return json({ error: 'Invalid account.' }, 400)
+      const needsStorageCleanup = await rpc<boolean>(env, 'turbo_owner_prepare_admin_delete', { p_actor: actor, p_target: target })
+      if (needsStorageCleanup) {
+        return json({ error: 'This admin uploaded item photos. Their access is suspended and sessions are revoked, but Supabase cannot delete an account that still owns Storage files. Re-upload or move those photos under another account, then retry Delete permanently.' }, 409)
+      }
+      try {
+        await serviceAuth(env, `/admin/users/${encodeURIComponent(target)}`, 'DELETE')
+      } catch {
+        return json({ error: 'The account was suspended and its sessions revoked, but Supabase could not confirm permanent deletion. Refresh the list; if it remains, retry Delete permanently.' }, 502)
+      }
+      return json({ ok: true })
+    }
     if (body.action === 'audit') return json({ entries: await rpc(env, 'turbo_owner_audit', { p_actor: actor }) })
     if (body.action === 'presence') return json({ presence: await rpc(env, 'turbo_owner_presence', { p_actor: actor }) })
     return json({ error: 'Unknown admin action.' }, 400)
