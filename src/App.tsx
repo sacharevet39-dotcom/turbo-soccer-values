@@ -397,16 +397,21 @@ function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[
 }
 
 function DemandStars({ rating, interactive = false, onChange }: { rating: number | null; interactive?: boolean; onChange?: (value: number | null) => void }) {
-  const thumb = rating != null && rating % 1 !== 0 ? '/brand/demand-star-half.png' : '/brand/demand-star-full.png'
-  return <div className={`demand-stars${interactive ? ' interactive' : ''}${rating == null ? ' unrated' : ''}`} role={interactive ? 'group' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5`}>
-    {interactive ? <>
-      <input className="demand-rating-slider" type="range" min="0.5" max="5" step="0.5" value={rating ?? 0.5} aria-label="Community demand rating" aria-valuetext={rating == null ? 'Not rated' : `${rating} out of 5`} style={{ '--demand-star-thumb': `url(${thumb})` } as React.CSSProperties} onChange={event => onChange?.(Number(event.target.value))} />
-      <span className="demand-current" aria-live="polite">{rating == null ? '—' : `${rating}/5`}</span>
-      {rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
-    </> : <>
-      <img className="demand-single-star" src="/brand/demand-star-full.png" alt="" />
-      <span className="demand-score">{rating == null ? 'Not rated' : `${rating}/5`}</span>
-    </>}
+  const fillFor = (index: number) => Math.max(0, Math.min(1, (rating ?? 0) - index))
+  return <div className={`demand-stars${interactive ? ' interactive' : ''}${rating == null ? ' unrated' : ''}`} role={interactive ? 'radiogroup' : 'img'} aria-label={rating == null ? 'Demand not rated' : `Demand: ${rating} out of 5 stars`}>
+    {Array.from({ length: 5 }, (_, index) => {
+      const fill = fillFor(index)
+      const image = fill >= 1 ? '/brand/demand-star-full.png' : fill >= 0.5 ? '/brand/demand-star-half.png' : '/brand/demand-star-empty.png'
+      return <span className="demand-star" key={index}>
+        <img className="demand-star-art" src={image} alt="" />
+        {interactive && <>
+          <button type="button" className="demand-half-button demand-half-left" role="radio" aria-checked={rating === index + 0.5} aria-label={`${index + 0.5} out of 5 stars`} onClick={() => onChange?.(index + 0.5)} />
+          <button type="button" className="demand-half-button demand-half-right" role="radio" aria-checked={rating === index + 1} aria-label={`${index + 1} out of 5 stars`} onClick={() => onChange?.(index + 1)} />
+        </>}
+      </span>
+    })}
+    <span className={interactive ? 'demand-current' : 'demand-score'} aria-live={interactive ? 'polite' : undefined}>{rating == null ? '—' : `${rating}/5`}</span>
+    {interactive && rating != null && <button type="button" className="clear-demand" aria-label="Clear demand rating" onClick={() => onChange?.(null)}>Clear</button>}
   </div>
 }
 
