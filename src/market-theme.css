@@ -889,6 +889,40 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .demand-stars.interactive .demand-star { width: 25px; height: 27px; }
 }
 
+/* Keep the catalogue dense on phones: four compact item cards per row. */
+@media (max-width: 600px) {
+  .item-grid, .item-grid-sparse, .loading-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(4px, 1.25vw, 7px);
+  }
+  .item-grid-sparse.sparse-1,
+  .item-grid-sparse.sparse-2,
+  .item-grid-sparse.sparse-3 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .item-grid-sparse { max-width: none; }
+  .item-card { min-width: 0; border-radius: 7px; }
+  .item-card-heading { min-width: 0; min-height: 27px; gap: 3px; padding: 0 5px; }
+  .item-card-heading h3 { min-width: 0; font-size: clamp(7px, 2vw, 9px); }
+  .item-card-heading .rarity-chip { max-width: 35px; overflow: hidden; padding: 2px 3px; font-size: 6px; text-overflow: ellipsis; }
+  .card-visual { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+  .card-item-art { width: 94%; max-width: none; border-radius: 6px; }
+  .card-info { min-width: 0; padding: 5px 5px 6px; }
+  .item-subline { min-width: 0; font-size: 7px; }
+  .item-subline > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-value-label { display: none; }
+  .card-price-line { min-width: 0; min-height: 18px; gap: 2px; }
+  .card-value.coin-value { min-width: 0; gap: 2px; font-size: 9px; }
+  .card-value.coin-value img { width: 12px; height: 12px; flex: none; }
+  .card-value.coin-value > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-price-line .price-trend.compact { gap: 0; font-size: 7px; }
+  .card-price-line .price-trend.compact svg { width: 10px; height: 10px; }
+  .card-price-line .price-trend.compact > span { display: none; }
+  .card-demand { min-width: 0; min-height: 20px; gap: 2px; margin-top: 4px; padding-top: 4px; }
+  .card-demand > span { display: none; }
+  .card-demand .demand-stars { min-width: 0; gap: 0; }
+  .card-demand .demand-star { width: 9px; height: 10px; }
+  .card-demand .demand-score { margin-left: 1px; font-size: 7px; }
+}
+
 @media (max-width: 700px) {
   .price-history-panel { margin-top: 16px; padding: 17px 13px 11px; border-radius: 12px; }
   .price-history-heading h2 { font-size: 22px; }
