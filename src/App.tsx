@@ -352,7 +352,7 @@ function PriceTrendIndicator({ trend, compact = false }: { trend?: PriceTrend | 
   const Icon = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : Minus
   const label = direction === 'stable' ? 'Stable' : direction === 'up' ? 'Rising' : 'Falling'
   const change = current != null && previous != null && previous !== 0 ? Math.abs((current - previous) / previous * 100) : null
-  return <span className={`price-trend price-trend-${direction}${compact ? ' compact' : ''}`} aria-label={change == null ? `Price ${label.toLowerCase()}` : `Price ${label.toLowerCase()} ${change.toFixed(1)} percent`} title={change == null ? `Price ${label.toLowerCase()}` : `${label} ${change.toFixed(1)}% since the previous value`}><Icon size={compact ? 14 : 17} strokeWidth={2.4} /><span>{compact && change != null && direction !== 'stable' ? `${change.toFixed(0)}%` : label}</span></span>
+  return <span className={`price-trend price-trend-${direction}${compact ? ' compact' : ''}`} aria-label={change == null ? `Price ${label.toLowerCase()}` : `Price ${label.toLowerCase()} ${change.toFixed(1)} percent`} title={change == null ? `Price ${label.toLowerCase()}` : `${label} ${change.toFixed(1)}% since the previous value`}><Icon size={compact ? 14 : 17} strokeWidth={2.4} /><span>{label}</span></span>
 }
 
 function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[] }) {
