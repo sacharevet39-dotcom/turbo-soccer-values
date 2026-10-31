@@ -1,10 +1,17 @@
 .trade-hub { width: min(1500px, 100%); margin-inline: auto; }
-.trade-account-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; margin: 0 0 19px; border: 1px solid #3b3b3b; border-radius: 11px; background: linear-gradient(115deg, #29252f, #202020 55%); box-shadow: 0 8px 24px #0002; }
+.trade-account-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; margin: 0 0 19px; border: 1px solid #3b3b3b; border-radius: 11px; background: linear-gradient(115deg, #29252f, #202020 55%); box-shadow: 0 8px 24px #0002; }
 .trade-account-copy { min-width: 0; display: flex; align-items: center; gap: 12px; }
 .trade-account-mark, .trade-callout-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border: 1px solid #72608a; border-radius: 10px; background: #39214f; color: #dcbaff; }
 .trade-account-copy b, .trade-publish-callout b { color: #f2eef6; font-size: 14px; }
 .trade-account-copy p, .trade-publish-callout p { margin: 4px 0 0; color: #aaa4b2; font-size: 11px; line-height: 1.5; }
 .trade-account-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.trade-roblox-profile { display: flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%; margin: 0 0 0 auto; padding: 8px 11px; color: #f6f1fa; text-decoration: none; border: 1px solid #4b3a59; border-radius: 9px; background: #17151b; }
+.trade-roblox-profile > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.trade-roblox-profile b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.trade-roblox-profile small, .trade-player-roblox-id { color: #aaa0b4; font-size: 10px; }
+.trade-roblox-profile > svg { flex: 0 0 auto; color: #bca6cf; }
+.trade-roblox-avatar { display: grid; width: 34px; height: 34px; flex: 0 0 auto; overflow: hidden; place-items: center; border: 1px solid #564563; border-radius: 50%; background: #29222f; color: #c6b9d2; }
+.trade-roblox-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .trade-account-button { min-height: 39px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid #514360; border-radius: 7px; background: #302338; color: #eee5fa; font-size: 11px; font-weight: 750; cursor: pointer; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
 .trade-account-button:hover:not(:disabled) { transform: translateY(-1px); border-color: #8b6aa9; background: #3e2a4c; }
 .trade-account-button.roblox { border-color: #6f5942; background: #30291f; color: #f4debc; }
@@ -44,6 +51,7 @@
 .trade-player-platform i { width: 6px; height: 6px; border-radius: 50%; background: #edb969; }
 .trade-player-platform i.discord { background: #ab80dc; }
 .trade-player-info > small { display: inline-flex; align-items: center; gap: 4px; color: #88818f; font-size: 9px; }
+.trade-player-info > .trade-player-roblox-id { display: block; color: #b9a8c9; }
 .trade-listing-items { min-width: 0; min-height: 103px; padding: 9px; border: 1px solid #4a414e; border-radius: 8px; background: #26232a; }
 .trade-listing-items.offer { border-top: 2px solid #d4a846; }
 .trade-listing-items.want { border-top: 2px solid #9a5ed0; }
@@ -130,6 +138,7 @@
 @media (max-width: 850px) {
   .trade-account-panel { align-items: start; flex-direction: column; }
   .trade-account-actions { justify-content: start; }
+  .trade-roblox-profile { margin-left: 0; }
   .trade-listing-card { grid-template-columns: 1fr 34px 1fr; gap: 9px; }
   .trade-listing-player { grid-column: 1 / 3; grid-row: 1; }
   .trade-listing-items.offer { grid-column: 1; grid-row: 2; }
