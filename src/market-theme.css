@@ -807,6 +807,26 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
   .site-topbar .brand-logo, .site-topbar .nav-link, .site-topbar .nav-link:after, .site-topbar .admin-link, .mobile-menu-toggle svg, .site-topbar .main-nav { transition: none; }
 }
 
+/* Improve legibility across the item detail, history chart and item grid. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
+.detail-card h1 { font-family: 'DM Sans', sans-serif; font-weight: 800; letter-spacing: -.025em; line-height: 1.12; }
+.detail-value.coin-value { font-family: 'DM Sans', sans-serif; font-size: 31px; font-weight: 800; letter-spacing: -.02em; }
+.detail-value.coin-value img { filter: drop-shadow(0 2px 4px #0008); }
+.detail-value-label { color: #c7cad1; font-size: 12px; }
+.detail-description { color: #f0edf3; font-size: 15px; line-height: 1.75; }
+.detail-description.muted { color: #c8c4ce; }
+.detail-demand { color: #c9c7cf; font-size: 10px; letter-spacing: .08em; }
+.detail-meta { color: #bbb8c4; font-size: 12px; }
+.detail-disclaimer { color: #c1bdca; font-size: 11px; line-height: 1.6; }
+.back-to-items { color: #d7c3e7; }
+.price-history-heading p, .price-history-footer, .history-point-count { color: #b1b1b8; }
+.history-summary small { color: #b1b1b8; font-size: 10px; }
+.price-chart-label { fill: #b8b8bf; font-size: 12px; }
+.card-info .item-subline { color: #b3b3b9; }
+.item-card-heading h3 { color: #f5f4f7; font-weight: 700; }
+.detail-art { filter: contrast(1.06) saturate(1.06) drop-shadow(0 14px 18px #0007); }
+
 .card-price-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 25px; }
 .price-trend { display: inline-flex; align-items: center; gap: 5px; flex: none; color: #b0b0b0; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .price-trend-up { color: #55d889; }
@@ -832,6 +852,9 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .price-chart-label { fill: #969696; font: 11px ui-sans-serif, system-ui, sans-serif; }
 .price-chart-line { fill: none; stroke: #58d68d; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .price-chart-point { fill: #64df98; stroke: #191919; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.price-chart-point.admin-editable { cursor: pointer; stroke: #18251d; stroke-width: 2.5; transition: fill .15s, r .15s, stroke .15s; }
+.price-chart-point.admin-editable:hover, .price-chart-point.admin-editable:focus-visible { fill: #ff7272; stroke: #fff; stroke-width: 3; outline: none; }
+.price-chart-point.admin-editable.deleting { fill: #ff7272; opacity: .45; pointer-events: none; }
 .price-chart-empty { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #ddd; text-align: center; }
 .price-chart-empty-line { width: min(400px, 70%); height: 1px; background: #999; box-shadow: 0 0 10px #aaa4; }
 .price-chart-empty b { font-size: 13px; }
@@ -840,6 +863,8 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .price-history-footer > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: #b8b8b8; font-weight: 700; }
 .price-history-footer > span:first-child i { width: 8px; height: 8px; border-radius: 50%; background: #58d68d; }
 .price-history-footer .price-trend { margin-left: auto; }
+.history-admin-hint { display: inline-flex; align-items: center; gap: 5px; color: #ff9b9b; font-weight: 700; }
+.history-action-message { margin: 7px 0 0; color: #e6bcbc; font-size: 11px; }
 
 /* Rarity filter pills mirror the colorful game rarity selector. */
 .rarity-filter { display: grid; gap: 8px; margin: 0 0 13px; }
