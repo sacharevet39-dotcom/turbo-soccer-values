@@ -360,23 +360,30 @@ function PriceHistoryChart({ item, history, canManageHistory = false, deletingPo
   const plotWidth = width - left - right, plotHeight = height - top - bottom
   const points = history.filter(point => Number.isFinite(point.value)).slice(-500)
   const values = points.map(point => point.value)
-  const low = values.length ? Math.min(...values) : item.value ?? 0
-  const high = values.length ? Math.max(...values) : item.value ?? 1
+  const hasCurrentPrice = item.value != null && Number.isFinite(item.value)
+  const chartValues = values.length ? values : hasCurrentPrice ? [item.value!] : []
+  const low = chartValues.length ? Math.min(...chartValues) : 0
+  const high = chartValues.length ? Math.max(...chartValues) : 1
   const padding = Math.max((high - low) * .12, high * .035, 1)
   const min = Math.max(0, low - padding), max = high + padding
   const x = (index: number) => points.length < 2 ? left + plotWidth / 2 : left + index / (points.length - 1) * plotWidth
   const y = (value: number) => top + (max === min ? .5 : (max - value) / (max - min)) * plotHeight
-  const line = points.reduce((path, point, index) => {
+  const flatValue = points.length === 0 ? (hasCurrentPrice ? item.value! : null) : points.length === 1 ? points[0].value : null
+  const line = flatValue != null
+    ? `M ${left} ${y(flatValue).toFixed(1)} L ${(width - right).toFixed(1)} ${y(flatValue).toFixed(1)}`
+    : points.reduce((path, point, index) => {
     if (index === 0) return `M ${x(index).toFixed(1)} ${y(point.value).toFixed(1)}`
     const middle = (x(index - 1) + x(index)) / 2
     return `${path} C ${middle.toFixed(1)} ${y(points[index - 1].value).toFixed(1)}, ${middle.toFixed(1)} ${y(point.value).toFixed(1)}, ${x(index).toFixed(1)} ${y(point.value).toFixed(1)}`
   }, '')
-  const area = points.length ? `${line} L ${x(points.length - 1).toFixed(1)} ${(top + plotHeight).toFixed(1)} L ${x(0).toFixed(1)} ${(top + plotHeight).toFixed(1)} Z` : ''
+  const area = line ? `${line} L ${(width - right).toFixed(1)} ${(top + plotHeight).toFixed(1)} L ${left} ${(top + plotHeight).toFixed(1)} Z` : ''
   const first = points[0]?.value ?? item.value
   const latest = points.at(-1)?.value ?? item.value
   const change = first != null && latest != null && first !== 0 ? ((latest - first) / first) * 100 : 0
-  const peak = values.length ? Math.max(...values) : item.value
-  const floor = values.length ? Math.min(...values) : item.value
+  const peak = chartValues.length ? Math.max(...chartValues) : item.value
+  const floor = chartValues.length ? Math.min(...chartValues) : item.value
+  const historyStart = points[0]?.recorded_at ?? (hasCurrentPrice ? item.updated_at : undefined)
+  const historyEnd = points.at(-1)?.recorded_at ?? (hasCurrentPrice ? item.updated_at : undefined)
   const number = (value: number | null) => value == null ? 'Not set' : new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
   const date = (value?: string) => value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
   const ticks = Array.from({ length: 5 }, (_, index) => max - (max - min) * index / 4)
@@ -384,7 +391,7 @@ function PriceHistoryChart({ item, history, canManageHistory = false, deletingPo
     <div className="price-history-heading"><div><span className="eyebrow section-eyebrow">MARKET TRACKER</span><h2 id="price-history-title">Price history</h2><p>Recorded value changes for this item</p></div><span className="history-point-count">{points.length} {points.length === 1 ? 'record' : 'records'}</span></div>
     <div className="history-summary"><div><small>CURRENT</small><b>{number(item.value)}</b></div><div><small>CHANGE</small><b className={change > 0 ? 'history-up' : change < 0 ? 'history-down' : 'history-stable'}>{change > 0 ? '+' : ''}{change.toFixed(1)}%</b></div><div><small>PEAK</small><b>{number(peak)}</b></div><div><small>LOW</small><b>{number(floor)}</b></div></div>
     <div className="price-chart-wrap">
-      {points.length ? <svg className="price-history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Price history for ${item.name}: ${points.length} recorded values`}>
+      {line ? <svg className="price-history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Price history for ${item.name}: ${points.length ? `${points.length} recorded values` : `steady at ${number(item.value)} coins`}`}>
         <defs><linearGradient id="price-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#77d45c" stopOpacity=".24" /><stop offset="100%" stopColor="#77d45c" stopOpacity="0" /></linearGradient></defs>
         {ticks.map((tick, index) => <g key={index}><line x1={left} x2={width - right} y1={top + index * plotHeight / 4} y2={top + index * plotHeight / 4} className="price-chart-gridline" /><text x={left - 10} y={top + index * plotHeight / 4 + 4} textAnchor="end" className="price-chart-label">{number(tick)}</text></g>)}
         <path d={area} fill="url(#price-chart-fill)" /><path d={line} className="price-chart-line" />
@@ -392,7 +399,7 @@ function PriceHistoryChart({ item, history, canManageHistory = false, deletingPo
         {[...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].filter(index => index >= 0).map(index => <text key={`${points[index].recorded_at}-${index}`} x={index === 0 ? left : index === points.length - 1 ? width - right : x(index)} y={height - 12} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} className="price-chart-label">{date(points[index].recorded_at)}</text>)}
       </svg> : <div className="price-chart-empty"><span className="price-chart-empty-line" /><b>History begins with the next price update</b><small>This chart will grow whenever the item value changes.</small></div>}
     </div>
-    <div className="price-history-footer"><span><i /> VALUE</span><span>{date(points[0]?.recorded_at)}{points.length > 1 ? ` – ${date(points.at(-1)?.recorded_at)}` : ''}</span>{canManageHistory && <span className="history-admin-hint"><Trash2 size={13} /> Click a point to delete it</span>}<PriceTrendIndicator trend={points.length ? { item_id: item.id, current_value: latest, previous_value: points.length > 1 ? points.at(-2)!.value : latest } : undefined} /></div>
+    <div className="price-history-footer"><span><i /> VALUE</span><span>{date(historyStart)}{historyStart !== historyEnd ? ` – ${date(historyEnd)}` : ''}</span>{canManageHistory && points.length > 0 && <span className="history-admin-hint"><Trash2 size={13} /> Click a point to delete it</span>}<PriceTrendIndicator trend={points.length || hasCurrentPrice ? { item_id: item.id, current_value: latest, previous_value: points.length > 1 ? points.at(-2)!.value : latest } : undefined} /></div>
     {actionMessage && <p className="history-action-message" role="status">{actionMessage}</p>}
   </section>
 }
