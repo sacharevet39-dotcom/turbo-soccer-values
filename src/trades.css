@@ -264,3 +264,69 @@
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } .trade-listing-card, .trade-contact-button { transition: none; } }
 .trade-listing-card.from-admin{border-color:#536b38;box-shadow:inset 3px 0 #b4e65d}.trade-listing-player{width:100%;display:flex;align-items:center;gap:11px;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.trade-player-info{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}.trade-profile-chevron{margin-left:auto;color:#999;font-size:10px;white-space:nowrap}.trade-listing-player:hover .trade-profile-chevron{color:#d0d0d0}.trade-admin-badge{display:inline-flex;align-items:center;gap:4px;width:max-content;max-width:100%;padding:4px 7px;border:1px solid #647d3e;border-radius:999px;background:#29331e;color:#c8f15a;font-size:9px;font-weight:800;line-height:1.2}.trade-player-profile-detail{display:flex;align-items:center;gap:11px;margin:10px 0 2px;padding:10px;border:1px solid #414a35;border-radius:9px;background:#1d211a}.trade-player-profile-detail>img{width:44px;height:44px;object-fit:cover;border:1px solid #4f5941;border-radius:9px;background:#292929}.trade-player-profile-detail>div{display:grid;gap:4px;flex:1;min-width:0}.trade-player-profile-detail>div>b{font-size:11px}.trade-player-profile-detail>div>small{font-size:9px;color:#aaa}.trade-player-profile-detail>a{width:30px;height:30px;display:grid;place-items:center;border:1px solid #454545;border-radius:7px;color:#ccc}.trade-player-profile-detail>a:hover{background:#303030}
 @media(max-width:700px){.trade-listing-player{gap:8px}.trade-player-avatar{width:40px;height:40px}.trade-profile-chevron{font-size:9px}.trade-admin-badge{font-size:8px}}
+
+/* Turbo Soccer trade market: brighter colors, playful energy and clearer currency chips. */
+.trade-listing-card { border-color: #792bd0; background: linear-gradient(112deg, #45107d 0%, #31085e 48%, #3d096d 100%); box-shadow: 0 5px 0 #21043d, 0 10px 24px #12021f66; }
+.trade-listing-card:hover { border-color: #be75ff; box-shadow: 0 6px 0 #21043d, 0 13px 28px #12021f88; }
+.trade-listing-items { border-color: #7134a3; background: linear-gradient(145deg, #3b0c68, #2c074f); }
+.trade-listing-items.offer { border-top-color: #44edc2; }
+.trade-listing-items.want { border-top-color: #ffdb3c; }
+.trade-listing-items-heading b { color: #f7eaff; }
+.trade-listing-item-image { border-color: #8e51bc; background: radial-gradient(circle at 50% 32%, #683b91, #3b155d 75%); }
+.trade-listing-item-row { flex-wrap: wrap; overflow: visible; }
+.trade-listing-currency { min-width: 94px; display: flex; align-items: center; gap: 7px; padding: 5px 8px; border: 1px solid #9463c4; border-radius: 9px; background: linear-gradient(145deg, #56138d, #3d086b); box-shadow: 0 3px 0 #240443; }
+.trade-listing-currency-icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 9px; background: #35105c; color: #53f2cb; }
+.trade-listing-currency-icon.coins { background: #632e08; }
+.trade-listing-currency-icon img { width: 29px; height: 29px; object-fit: contain; }
+.trade-listing-currency > span { display: grid; gap: 1px; min-width: 0; }
+.trade-listing-currency > span b { color: #fff; font-size: 12px; font-weight: 900; }
+.trade-listing-currency > span small { color: #e2c8f5; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.trade-hub-toolbar .trade-hub-search, .trade-hub-toolbar .trade-hub-filter, .trade-refresh-button { border-color: #7134a3; background: #31085b; color: #e9d4ff; }
+.trade-listings-heading h3 { color: #fff; text-shadow: 0 2px 0 #531286; }
+.trade-open-count { border-color: #28795d; background: #123f38; color: #8fffd9; }
+.trade-open-count i { background: #52f1c5; box-shadow: 0 0 10px #52f1c5aa; }
+.trade-publish-callout { border-color: #7939b0; background: linear-gradient(110deg, #4b1478, #2d0950 75%); box-shadow: 0 5px 0 #21043d; }
+.trade-callout-icon { border-color: #b55bff; border-radius: 13px 13px 13px 4px; background: #7922c6; color: #ffdc42; }
+.trade-account-panel { border-color: #7939b0; background: linear-gradient(115deg, #471176, #2e0a51 65%, #42106f); }
+.trade-account-mark { border-color: #b55bff; background: #7325b2; color: #ffdb3c; }
+.trade-modal-backdrop { background: #12051edd; }
+.trade-composer { border: 2px solid #7f38b4; background: radial-gradient(ellipse at 12% 0%, #481172 0, transparent 36%), radial-gradient(ellipse at 100% 100%, #38105d 0, transparent 35%), #24102f; box-shadow: 0 8px 0 #170429, 0 24px 80px #000b; }
+.trade-composer-header { border-bottom-color: #56316c; }
+.trade-composer-header h2 { color: #fff; font-weight: 900; text-shadow: 0 2px 0 #602091; }
+.trade-composer-close { border-color: #81549d; background: #3b1a50; color: #fff; }
+.trade-wizard-step { border-color: #684181; background: #331747; color: #ddc4ee; }
+.trade-wizard-step.active { border-color: #d998ff; background: linear-gradient(100deg, #7826b7, #53208a); color: #fff; box-shadow: 0 3px 0 #36105c; }
+.trade-wizard-step.complete { border-color: #40d5a6; background: #173f45; color: #8fffd9; }
+.trade-item-grid { scrollbar-color: #9c42d5 #2a1040; }
+.trade-choice-card { border-color: #67358b; background: linear-gradient(150deg, #46176b, #2b0d46 72%); box-shadow: 0 3px 0 #1a0730; }
+.trade-choice-card:hover { border-color: #d28aff; box-shadow: 0 4px 0 #1a0730, 0 0 18px #a243df55; }
+.trade-choice-card.selected { border-color: #62f2c4; background: linear-gradient(150deg, #285e67, #303050); box-shadow: 0 0 0 1px #62f2c455, 0 4px 0 #174447; }
+.trade-choice-art { border-color: #8151a3; background: radial-gradient(ellipse at 50% 40%, #68418a, #351653 75%); }
+.trade-choice-check { border-color: #d6ff8d; background: #b5e853; color: #20290f; }
+.trade-choice-select > b { color: #fff; font-weight: 850; }
+.trade-choice-card:not(.selected)::after { border-color: #ffffff88; background: #761faff0; color: #fff; }
+.trade-choice-quantity button { border-color: #44c89f; background: #164f4b; color: #9affd8; }
+.trade-picker-toolbar .trade-editor-search { border-color: #70418b; background: #251138; color: #e2c6f7; }
+.trade-picker-toolbar .trade-editor-search input { color: #fff; }
+.trade-picker-category select { border-color: #70418b; background: #251138; }
+.trade-picker-count b { color: #ffdf55; }
+.trade-picker-limit { color: #ffdf55; }
+.trade-currency-choice { background: linear-gradient(150deg, #47206b, #29113e 75%); }
+.trade-currency-choice .trade-choice-select { cursor: default; }
+.trade-currency-art.coins { border-color: #d69b23; background: radial-gradient(circle, #ffdd42, #e98a12); }
+.trade-currency-art.gems { border-color: #42e8cd; background: radial-gradient(circle, #a2ffe7, #36cdb6); color: #6d18aa; }
+.trade-currency-art.coins img { width: 58%; height: 58%; object-fit: contain; }
+.trade-currency-art.gems svg { width: 54%; height: 54%; stroke-width: 2.5; filter: drop-shadow(0 3px 0 #188e8e); }
+.trade-currency-input { display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 5px 6px; color: #dfc7ef; font-size: 8px; font-weight: 800; white-space: nowrap; }
+.trade-currency-input input { width: 58%; min-width: 0; height: 23px; padding: 0 4px; border: 1px solid #8a56a7; border-radius: 5px; outline: 0; background: #21102d; color: #fff; font: 800 10px var(--body); text-align: center; }
+.trade-currency-input input:focus { border-color: #f5d844; box-shadow: 0 0 0 2px #f5d84433; }
+.trade-review-side { border-color: #70418b; background: linear-gradient(145deg, #391251, #271032); }
+.trade-review-side.offer { border-top-color: #44edc2; }
+.trade-review-side.want { border-top-color: #ffdb3c; }
+.trade-review-item { border-color: #634078; background: #2c123e; }
+.trade-review-art.coins { background: radial-gradient(circle, #ffdd42, #e98a12); }
+.trade-review-art.gems { color: #52e8c7; }
+.trade-review-currency-edit input { width: 82px; height: 27px; padding: 0 5px; border: 1px solid #8054a0; border-radius: 6px; background: #20102b; color: #fff; font: 800 10px var(--body); text-align: center; }
+.trade-message-field textarea { border-color: #684181; background: #281239; color: #fff; }
+.trade-composer-footer { border-top-color: #56316c; }
+.trade-wizard-back { border-color: #81549d; background: #3b1a50; color: #fff; }

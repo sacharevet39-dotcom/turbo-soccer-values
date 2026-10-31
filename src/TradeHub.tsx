@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, Clock3, ExternalLink, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, Clock3, ExternalLink, Gem, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
 
 type TradeLine = { id: string; quantity: number }
+type TradeCurrency = { coins: number; gems: number }
 type TradeSide = 'offer' | 'want'
 type TradeListingItem = { side: TradeSide; quantity: number; item: Item }
 type TradeListing = {
@@ -21,6 +22,10 @@ type TradeListing = {
   trader_admin_display_name: string | null
   trader_admin_title: string | null
   trader_admin_title_color: string | null
+  offer_coins: number
+  offer_gems: number
+  want_coins: number
+  want_gems: number
   message: string
   status: 'open' | 'closed'
   created_at: string
@@ -72,7 +77,7 @@ export function TradeHub({ items }: { items: Item[] }) {
     if (!tradeAuth) { setListings([]); setLoading(false); return }
     const { data, error } = await tradeAuth
       .from('trade_listings')
-      .select('id,user_id,identity_provider,identity_provider_id,trader_name,trader_avatar_url,trader_profile_url,trader_handle,trader_is_admin,trader_admin_role,trader_admin_display_name,trader_admin_title,trader_admin_title_color,message,status,created_at,trade_listing_items(side,quantity,item:items(*))')
+      .select('id,user_id,identity_provider,identity_provider_id,trader_name,trader_avatar_url,trader_profile_url,trader_handle,trader_is_admin,trader_admin_role,trader_admin_display_name,trader_admin_title,trader_admin_title_color,offer_coins,offer_gems,want_coins,want_gems,message,status,created_at,trade_listing_items(side,quantity,item:items(id,name,image_path,category))')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(60)
@@ -100,12 +105,14 @@ export function TradeHub({ items }: { items: Item[] }) {
 
   const filteredListings = useMemo(() => listings.filter(listing => {
     const categoryMatch = filter === 'all' || listing.trade_listing_items.some(line => line.item.category === filter)
-    const searchMatch = !search.trim() || [listing.trader_name, listing.message, ...listing.trade_listing_items.map(line => line.item.name)].join(' ').toLowerCase().includes(search.trim().toLowerCase())
+    const currencyTerms = [listing.offer_coins, listing.want_coins].some(value => value > 0) ? 'coins' : ''
+    const gemTerms = [listing.offer_gems, listing.want_gems].some(value => value > 0) ? 'gems' : ''
+    const searchMatch = !search.trim() || [listing.trader_name, listing.message, currencyTerms, gemTerms, ...listing.trade_listing_items.map(line => line.item.name)].join(' ').toLowerCase().includes(search.trim().toLowerCase())
     return categoryMatch && searchMatch
   }), [filter, listings, search])
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter((category): category is string => Boolean(category)))].sort(), [items])
 
-  async function publishListing(offer: TradeLine[], want: TradeLine[], message: string) {
+  async function publishListing(offer: TradeLine[], want: TradeLine[], message: string, offerCurrency: TradeCurrency, wantCurrency: TradeCurrency) {
     const client = adminMode ? supabase : tradeAuth
     if (!client || saving) return
     setSaving(true); setNotice('')
@@ -113,6 +120,10 @@ export function TradeHub({ items }: { items: Item[] }) {
       p_offer_items: offer.map(line => ({ item_id: line.id, quantity: line.quantity })),
       p_want_items: want.map(line => ({ item_id: line.id, quantity: line.quantity })),
       p_message: message.trim(),
+      p_offer_coins: offerCurrency.coins,
+      p_offer_gems: offerCurrency.gems,
+      p_want_coins: wantCurrency.coins,
+      p_want_gems: wantCurrency.gems,
     })
     if (error) setNotice(errorMessage(error))
     else { setShowComposer(false); setNotice('Your trade listing is live.'); await loadListings() }
@@ -139,7 +150,7 @@ export function TradeHub({ items }: { items: Item[] }) {
 
     <section className="trade-publish-callout"><div><span className="trade-callout-icon"><Plus size={19} /></span><div><b>Looking for a specific item?</b><p>Publish what you offer and what you want. Your verified profile appears on the listing.</p></div></div><button type="button" className="trade-publish-button" disabled={!hasTradeIdentity} onClick={() => setShowComposer(true)}><Plus size={16} /> Create a listing</button>{!hasTradeIdentity && <small>Connect Roblox or Discord to publish.</small>}</section>
 
-    {showComposer && <TradeComposer items={items} saving={saving} onClose={() => setShowComposer(false)} onPublish={(offer, want, message) => void publishListing(offer, want, message)} />}
+    {showComposer && <TradeComposer items={items} saving={saving} onClose={() => setShowComposer(false)} onPublish={(offer, want, message, offerCurrency, wantCurrency) => void publishListing(offer, want, message, offerCurrency, wantCurrency)} />}
   </div>
 }
 
@@ -147,26 +158,31 @@ function TradeListingCard({ listing, own, onClose }: { listing: TradeListing; ow
   const [profileOpen, setProfileOpen] = useState(false)
   const offer = listing.trade_listing_items.filter(line => line.side === 'offer')
   const want = listing.trade_listing_items.filter(line => line.side === 'want')
-  const value = (lines: TradeListingItem[]) => lines.reduce((total, line) => total + (line.item.value ?? 0) * line.quantity, 0)
   const contactLabel = listing.identity_provider === 'custom:roblox' ? 'View Roblox profile' : 'View Discord profile'
   return <article className={`trade-listing-card${listing.trader_is_admin ? ' from-admin' : ''}`}>
     <button type="button" className="trade-listing-player" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}><div className="trade-player-avatar">{listing.trader_avatar_url || listing.identity_provider === "custom:roblox" ? <img src={listing.trader_avatar_url || `https://www.roblox.com/headshot-thumbnail/image?userId=${encodeURIComponent(listing.identity_provider_id)}&width=150&height=150&format=png`} alt="" loading="lazy" /> : <UserRound size={23} />}</div><div className="trade-player-info"><b>{listing.trader_name}</b>{listing.trader_handle && <small className="trade-player-handle">@{listing.trader_handle}</small>}<span className="trade-player-platform"><i className={listing.identity_provider === 'discord' ? 'discord' : 'roblox'} />Verified {identityLabel(listing.identity_provider)}</span>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Verified Owner' : 'Verified Admin'}{listing.trader_admin_title ? ` · ${listing.trader_admin_title}` : ''}</span>}<small><Clock3 size={12} />{relativeTime(listing.created_at)}</small></div><span className="trade-profile-chevron">{profileOpen ? 'Hide profile' : 'View profile'}</span></button>
     {profileOpen && <div className="trade-player-profile-detail">{listing.trader_avatar_url && <img src={listing.trader_avatar_url} alt={`${listing.trader_name}'s Roblox avatar`} /> }<div><b>{listing.trader_admin_display_name || listing.trader_name}</b><small>{listing.identity_provider === 'custom:roblox' ? `Roblox ID · ${listing.identity_provider_id}` : `Discord ID · ${listing.identity_provider_id}`}</small>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Turbo Soccer Owner' : 'Turbo Soccer Admin'}</span>}</div>{listing.trader_profile_url && <a href={listing.trader_profile_url} target="_blank" rel="noreferrer" aria-label={contactLabel}><ExternalLink size={15} /></a>}</div>}
-    <TradeListingItems title="OFFERING" tone="offer" lines={offer} total={value(offer)} />
+    <TradeListingItems title="OFFERING" tone="offer" lines={offer} currencies={{ coins: listing.offer_coins, gems: listing.offer_gems }} />
     <span className="trade-listing-swap"><ArrowLeftRight size={19} /></span>
-    <TradeListingItems title="LOOKING FOR" tone="want" lines={want} total={value(want)} />
+    <TradeListingItems title="LOOKING FOR" tone="want" lines={want} currencies={{ coins: listing.want_coins, gems: listing.want_gems }} />
     <div className="trade-listing-actions">{own && <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={14} /> Close offer</button>}</div>
     {listing.message && <p className="trade-listing-message">“{listing.message}”</p>}
   </article>
 }
 
-function TradeListingItems({ title, tone, lines, total }: { title: string; tone: 'offer' | 'want'; lines: TradeListingItem[]; total: number }) {
-  return <div className={`trade-listing-items ${tone}`}><div className="trade-listing-items-heading"><b>{title}</b><span>{total ? `${new Intl.NumberFormat('en-US').format(total)} coins` : 'Value not set'}</span></div><div className="trade-listing-item-row">{lines.slice(0, 4).map(line => <div className="trade-listing-item" key={line.item.id} title={`${line.item.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''}`}><div className="trade-listing-item-image">{itemImage(line.item.image_path) ? <img src={itemImage(line.item.image_path)!} alt="" loading="lazy" /> : <UserRound size={18} />}{line.quantity > 1 && <span>×{line.quantity}</span>}</div><small>{line.item.name}</small></div>)}{lines.length > 4 && <span className="trade-more-items">+{lines.length - 4}</span>}</div></div>
+function TradeListingItems({ title, tone, lines, currencies }: { title: string; tone: 'offer' | 'want'; lines: TradeListingItem[]; currencies: TradeCurrency }) {
+  return <div className={`trade-listing-items ${tone}`}><div className="trade-listing-items-heading"><b>{title}</b></div><div className="trade-listing-item-row">{lines.slice(0, 4).map(line => <div className="trade-listing-item" key={line.item.id} title={`${line.item.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''}`}><div className="trade-listing-item-image">{itemImage(line.item.image_path) ? <img src={itemImage(line.item.image_path)!} alt="" loading="lazy" /> : <UserRound size={18} />}{line.quantity > 1 && <span>×{line.quantity}</span>}</div><small>{line.item.name}</small></div>)}{lines.length > 4 && <span className="trade-more-items">+{lines.length - 4}</span>}{currencies.gems > 0 && <TradeCurrencyListing type="gems" quantity={currencies.gems} />}{currencies.coins > 0 && <TradeCurrencyListing type="coins" quantity={currencies.coins} />}</div></div>
 }
 
-function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; saving: boolean; onClose: () => void; onPublish: (offer: TradeLine[], want: TradeLine[], message: string) => void }) {
+function TradeCurrencyListing({ type, quantity }: { type: keyof TradeCurrency; quantity: number }) {
+  return <div className="trade-listing-currency"><div className={`trade-listing-currency-icon ${type}`}>{type === 'coins' ? <img src="/brand/coin.png" alt="" /> : <Gem size={22} />}</div><span><b>{new Intl.NumberFormat('en-US').format(quantity)}</b><small>{type === 'coins' ? 'Coins' : 'Gems'}</small></span></div>
+}
+
+function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; saving: boolean; onClose: () => void; onPublish: (offer: TradeLine[], want: TradeLine[], message: string, offerCurrency: TradeCurrency, wantCurrency: TradeCurrency) => void }) {
   const [offer, setOffer] = useState<TradeLine[]>([])
   const [want, setWant] = useState<TradeLine[]>([])
+  const [offerCurrency, setOfferCurrency] = useState<TradeCurrency>({ coins: 0, gems: 0 })
+  const [wantCurrency, setWantCurrency] = useState<TradeCurrency>({ coins: 0, gems: 0 })
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -177,30 +193,32 @@ function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; s
   }, [onClose, saving])
   function continueStep() {
     setError('')
-    if (step === 1 && !want.length) { setError('Choose at least one item you want.'); return }
-    if (step === 2 && !offer.length) { setError('Choose at least one item you offer.'); return }
+    if (step === 1 && !want.length && !wantCurrency.coins && !wantCurrency.gems) { setError('Choose an item, Coins or Gems that you want.'); return }
+    if (step === 2 && !offer.length && !offerCurrency.coins && !offerCurrency.gems) { setError('Choose an item, Coins or Gems that you offer.'); return }
     setStep(current => current === 1 ? 2 : 3)
   }
   function publish() {
     setError('')
-    if (!offer.length || !want.length) { setError('Complete both sides of the trade first.'); setStep(offer.length ? 2 : 1); return }
-    onPublish(offer, want, message)
+    if ((!offer.length && !offerCurrency.coins && !offerCurrency.gems) || (!want.length && !wantCurrency.coins && !wantCurrency.gems)) { setError('Complete both sides of the trade first.'); setStep(offer.length || offerCurrency.coins || offerCurrency.gems ? 1 : 2); return }
+    onPublish(offer, want, message, offerCurrency, wantCurrency)
   }
   const setSide = step === 1 ? setWant : setOffer
+  const setSideCurrency = step === 1 ? setWantCurrency : setOfferCurrency
   const pickerStep = step === 1 ? 1 : 2
   const lines = step === 1 ? want : offer
+  const currency = step === 1 ? wantCurrency : offerCurrency
   const title = step === 1 ? 'Choose what you want' : step === 2 ? 'Choose what you offer' : 'Review your offer'
   const description = step === 1 ? 'Select the items and quantities you would like in return.' : step === 2 ? 'Now choose the items and quantities you are offering.' : 'Check both sides, adjust quantities, then publish when ready.'
   return <div className="trade-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !saving) onClose() }}><section className="trade-composer" role="dialog" aria-modal="true" aria-labelledby="trade-composer-title">
     <header className="trade-composer-header"><div><span className="eyebrow section-eyebrow">NEW TRADE · STEP {step} OF 3</span><h2 id="trade-composer-title">{title}</h2><p>{description}</p></div><button type="button" className="trade-composer-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={19} /></button></header>
     <nav className="trade-wizard-steps" aria-label="Trade creation steps">{[{ number: 1, label: 'I want' }, { number: 2, label: 'I offer' }, { number: 3, label: 'Review' }].map(entry => <button type="button" key={entry.number} className={`trade-wizard-step${step === entry.number ? ' active' : ''}${step > entry.number ? ' complete' : ''}`} onClick={() => { if (entry.number < step) { setError(''); setStep(entry.number as 1 | 2 | 3) } }} disabled={entry.number > step}><span>{step > entry.number ? <Check size={13} /> : entry.number}</span>{entry.label}</button>)}</nav>
-    {step < 3 ? <TradeItemPicker step={pickerStep} items={items} lines={lines} onChange={setSide} /> : <div className="trade-review-layout"><TradeReviewSide title="YOU OFFER" tone="offer" lines={offer} items={items} onChange={setOffer} /><div className="trade-review-swap"><ArrowLeftRight size={20} /></div><TradeReviewSide title="YOU WANT" tone="want" lines={want} items={items} onChange={setWant} /><label className="trade-message-field"><span>Note <small>optional</small></span><textarea value={message} maxLength={300} onChange={event => setMessage(event.target.value)} placeholder="Add a short note for other players…" /><small>{message.length}/300</small></label></div>}
+    {step < 3 ? <TradeItemPicker step={pickerStep} items={items} lines={lines} onChange={setSide} currency={currency} onCurrencyChange={setSideCurrency} /> : <div className="trade-review-layout"><TradeReviewSide title="YOU OFFER" tone="offer" lines={offer} items={items} currency={offerCurrency} onChange={setOffer} onCurrencyChange={setOfferCurrency} /><div className="trade-review-swap"><ArrowLeftRight size={20} /></div><TradeReviewSide title="YOU WANT" tone="want" lines={want} items={items} currency={wantCurrency} onChange={setWant} onCurrencyChange={setWantCurrency} /><label className="trade-message-field"><span>Note <small>optional</small></span><textarea value={message} maxLength={300} onChange={event => setMessage(event.target.value)} placeholder="Add a short note for other players…" /><small>{message.length}/300</small></label></div>}
     {error && <p className="trade-composer-error" role="alert">{error}</p>}
     <footer className="trade-composer-footer"><span><ShieldCheck size={14} /> Your name comes from the connected Roblox/Discord account.</span><div className="trade-wizard-actions">{step > 1 && <button type="button" className="trade-wizard-back" onClick={() => { setError(''); setStep(current => current === 3 ? 2 : 1) }} disabled={saving}>Back</button>}{step < 3 ? <button type="button" className="trade-publish-button" onClick={continueStep}>Continue <ArrowRight size={15} /></button> : <button type="button" className="trade-publish-button" onClick={publish} disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{saving ? 'Publishing…' : 'Publish offer'}</button>}</div></footer>
   </section></div>
 }
 
-function TradeItemPicker({ step, items, lines, onChange }: { step: 1 | 2; items: Item[]; lines: TradeLine[]; onChange: (lines: TradeLine[]) => void }) {
+function TradeItemPicker({ step, items, lines, onChange, currency, onCurrencyChange }: { step: 1 | 2; items: Item[]; lines: TradeLine[]; onChange: (lines: TradeLine[]) => void; currency: TradeCurrency; onCurrencyChange: (value: TradeCurrency) => void }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter((value): value is string => Boolean(value)))].sort(), [items])
@@ -211,25 +229,35 @@ function TradeItemPicker({ step, items, lines, onChange }: { step: 1 | 2; items:
   const selected = lines.map(line => ({ line, item: items.find(item => item.id === line.id) })).filter((value): value is { line: TradeLine; item: Item } => Boolean(value.item))
   function add(item: Item) {
     if (lines.some(line => line.id === item.id)) return
-    if (lines.length >= 9) return
+    if (lines.length >= 10) return
     onChange([...lines, { id: item.id, quantity: 1 }])
   }
   function update(id: string, quantity: number) { onChange(quantity < 1 ? lines.filter(line => line.id !== id) : lines.map(line => line.id === id ? { ...line, quantity: Math.min(99, quantity) } : line)) }
   const unitCount = lines.reduce((total, line) => total + line.quantity, 0)
   return <section className={`trade-item-picker ${step === 1 ? 'want' : 'offer'}`}>
-    <div className="trade-picker-toolbar"><label className="trade-editor-search"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search items…" aria-label="Search trade items" /></label><label className="trade-picker-category"><span>Category</span><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">All items</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label><div className="trade-picker-count"><b>{selected.length}/9</b><span>items · {unitCount} total</span></div></div>
-    <div className="trade-item-grid" aria-label={step === 1 ? 'Choose items to offer' : 'Choose items you want'}>{matches.map(item => {
+    <div className="trade-picker-toolbar"><label className="trade-editor-search"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search items…" aria-label="Search trade items" /></label><label className="trade-picker-category"><span>Category</span><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">All items</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label><div className="trade-picker-count"><b>{selected.length}/10</b><span>item slots · {unitCount} items</span></div></div>
+    <div className="trade-item-grid" aria-label={step === 1 ? 'Choose items to want' : 'Choose items to offer'}><TradeCurrencyCard type="gems" amount={currency.gems} onChange={gems => onCurrencyChange({ ...currency, gems })} /><TradeCurrencyCard type="coins" amount={currency.coins} onChange={coins => onCurrencyChange({ ...currency, coins })} />{matches.map(item => {
       const line = lines.find(entry => entry.id === item.id)
       const image = itemImage(item.image_path)
-      return <article className={`trade-choice-card${line ? ' selected' : ''}`} key={item.id}><button type="button" className="trade-choice-select" onClick={() => line ? update(item.id, line.quantity + 1) : add(item)} disabled={!line && lines.length >= 9} aria-label={line ? `Add one more ${item.name}` : `Add ${item.name}`}><span className="trade-choice-art">{image ? <img src={image} alt="" loading="lazy" /> : <UserRound size={28} />}{line && <span className="trade-choice-check"><Check size={13} /></span>}</span><b title={item.name}>{item.name}</b></button>{line && <div className="trade-choice-quantity"><button type="button" onClick={() => update(item.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(item.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div>}</article>
+      return <article className={`trade-choice-card${line ? ' selected' : ''}`} key={item.id}><button type="button" className="trade-choice-select" onClick={() => line ? update(item.id, line.quantity + 1) : add(item)} disabled={!line && lines.length >= 10} aria-label={line ? `Add one more ${item.name}` : `Add ${item.name}`}><span className="trade-choice-art">{image ? <img src={image} alt="" loading="lazy" /> : <UserRound size={28} />}{line && <span className="trade-choice-check"><Check size={13} /></span>}</span><b title={item.name}>{item.name}</b></button>{line && <div className="trade-choice-quantity"><button type="button" onClick={() => update(item.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(item.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div>}</article>
     })}{!matches.length && <div className="trade-picker-no-results">No items match your search.</div>}</div>
-    {lines.length >= 9 && <p className="trade-picker-limit">You can choose up to 9 different item types per side.</p>}
+    {lines.length >= 10 && <p className="trade-picker-limit">Your 10 item slots are full. Coins and Gems have separate slots.</p>}
   </section>
 }
 
-function TradeReviewSide({ title, tone, lines, items, onChange }: { title: string; tone: TradeSide; lines: TradeLine[]; items: Item[]; onChange: (lines: TradeLine[]) => void }) {
+function TradeCurrencyCard({ type, amount, onChange }: { type: keyof TradeCurrency; amount: number; onChange: (value: number) => void }) {
+  const label = type === 'coins' ? 'Coins' : 'Gems'
+  const update = (value: string) => onChange(Math.min(50_000, Math.max(0, Math.floor(Number(value) || 0))))
+  return <article className={`trade-choice-card trade-currency-choice ${amount > 0 ? 'selected' : ''}`}><div className="trade-choice-select"><span className={`trade-choice-art trade-currency-art ${type}`}>{type === 'coins' ? <img src="/brand/coin.png" alt="" /> : <Gem size={52} />}{amount > 0 && <span className="trade-choice-check"><Check size={13} /></span>}</span><b>{label}</b></div><label className="trade-currency-input"><input type="number" inputMode="numeric" min="0" max="50000" step="1" value={amount || ''} onChange={event => update(event.target.value)} placeholder="0" aria-label={`${label} amount, maximum 50,000`} /><span>/ 50,000</span></label></article>
+}
+
+function TradeReviewSide({ title, tone, lines, items, currency, onChange, onCurrencyChange }: { title: string; tone: TradeSide; lines: TradeLine[]; items: Item[]; currency: TradeCurrency; onChange: (lines: TradeLine[]) => void; onCurrencyChange: (value: TradeCurrency) => void }) {
   const selected = lines.map(line => ({ line, item: items.find(item => item.id === line.id) })).filter((entry): entry is { line: TradeLine; item: Item } => Boolean(entry.item))
-  const total = selected.reduce((sum, entry) => sum + (entry.item.value ?? 0) * entry.line.quantity, 0)
   function update(id: string, quantity: number) { onChange(quantity < 1 ? lines.filter(line => line.id !== id) : lines.map(line => line.id === id ? { ...line, quantity: Math.min(99, quantity) } : line)) }
-  return <section className={`trade-review-side ${tone}`}><header><b>{title}</b><span>{selected.reduce((sum, entry) => sum + entry.line.quantity, 0)} total</span></header><div className="trade-review-items">{selected.map(({ line, item }) => <article className="trade-review-item" key={line.id}><div className="trade-review-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt="" /> : <UserRound size={22} />}</div><div className="trade-review-copy"><b>{item.name}</b><small>{item.category || 'Uncategorized'}</small><strong>{item.value == null ? 'Value not set' : `${new Intl.NumberFormat('en-US').format(item.value * line.quantity)} coins`}</strong></div><div className="trade-editor-quantity"><button type="button" onClick={() => update(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div><button type="button" className="trade-editor-remove" onClick={() => update(line.id, 0)} aria-label={`Remove ${item.name}`}><X size={14} /></button></article>)}</div><footer><span>Estimated value</span><b>{total ? `${new Intl.NumberFormat('en-US').format(total)} coins` : 'Value not set'}</b></footer></section>
+  return <section className={`trade-review-side ${tone}`}><header><b>{title}</b><span>{selected.length}/10 slots</span></header><div className="trade-review-items">{selected.map(({ line, item }) => <article className="trade-review-item" key={line.id}><div className="trade-review-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt="" /> : <UserRound size={22} />}</div><div className="trade-review-copy"><b>{item.name}</b><small>×{line.quantity}</small></div><div className="trade-editor-quantity"><button type="button" onClick={() => update(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div><button type="button" className="trade-editor-remove" onClick={() => update(line.id, 0)} aria-label={`Remove ${item.name}`}><X size={14} /></button></article>)}{currency.gems > 0 && <TradeReviewCurrency type="gems" amount={currency.gems} onChange={gems => onCurrencyChange({ ...currency, gems })} />}{currency.coins > 0 && <TradeReviewCurrency type="coins" amount={currency.coins} onChange={coins => onCurrencyChange({ ...currency, coins })} />}</div></section>
+}
+
+function TradeReviewCurrency({ type, amount, onChange }: { type: keyof TradeCurrency; amount: number; onChange: (value: number) => void }) {
+  const label = type === 'coins' ? 'Coins' : 'Gems'
+  return <article className="trade-review-item trade-review-currency"><div className={`trade-review-art ${type}`}>{type === 'coins' ? <img src="/brand/coin.png" alt="" /> : <Gem size={24} />}</div><div className="trade-review-copy"><b>{label}</b><small>{new Intl.NumberFormat('en-US').format(amount)}</small></div><label className="trade-review-currency-edit"><input type="number" min="0" max="50000" value={amount} onChange={event => onChange(Math.min(50_000, Math.max(0, Math.floor(Number(event.target.value) || 0))))} aria-label={`Edit ${label}, maximum 50,000`} /></label></article>
 }
