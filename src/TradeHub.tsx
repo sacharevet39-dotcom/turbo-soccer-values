@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, BadgeCheck, Clock3, ExternalLink, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, Clock3, ExternalLink, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
 
@@ -169,33 +169,67 @@ function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; s
   const [want, setWant] = useState<TradeLine[]>([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose() }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [onClose, saving])
+  function continueStep() {
+    setError('')
+    if (step === 1 && !want.length) { setError('Choose at least one item you want.'); return }
+    if (step === 2 && !offer.length) { setError('Choose at least one item you offer.'); return }
+    setStep(current => current === 1 ? 2 : 3)
+  }
   function publish() {
     setError('')
-    if (!offer.length || !want.length) { setError('Add at least one item to both sides of the trade.'); return }
+    if (!offer.length || !want.length) { setError('Complete both sides of the trade first.'); setStep(offer.length ? 2 : 1); return }
     onPublish(offer, want, message)
   }
+  const setSide = step === 1 ? setWant : setOffer
+  const pickerStep = step === 1 ? 1 : 2
+  const lines = step === 1 ? want : offer
+  const title = step === 1 ? 'Choose what you want' : step === 2 ? 'Choose what you offer' : 'Review your offer'
+  const description = step === 1 ? 'Select the items and quantities you would like in return.' : step === 2 ? 'Now choose the items and quantities you are offering.' : 'Check both sides, adjust quantities, then publish when ready.'
   return <div className="trade-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !saving) onClose() }}><section className="trade-composer" role="dialog" aria-modal="true" aria-labelledby="trade-composer-title">
-    <header className="trade-composer-header"><div><span className="eyebrow section-eyebrow">NEW OFFER</span><h2 id="trade-composer-title">Create a trade listing</h2><p>Choose what you offer and what you are looking for.</p></div><button type="button" className="trade-composer-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={19} /></button></header>
-    <div className="trade-composer-columns"><TradeSideEditor title="I OFFER" tone="offer" items={items} lines={offer} onChange={setOffer} /><div className="trade-composer-arrow"><ArrowLeftRight size={18} /></div><TradeSideEditor title="I WANT" tone="want" items={items} lines={want} onChange={setWant} /></div>
-    <label className="trade-message-field"><span>Note <small>optional</small></span><textarea value={message} maxLength={300} onChange={event => setMessage(event.target.value)} placeholder="Add a short note for other players…" /><small>{message.length}/300</small></label>
+    <header className="trade-composer-header"><div><span className="eyebrow section-eyebrow">NEW TRADE · STEP {step} OF 3</span><h2 id="trade-composer-title">{title}</h2><p>{description}</p></div><button type="button" className="trade-composer-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={19} /></button></header>
+    <nav className="trade-wizard-steps" aria-label="Trade creation steps">{[{ number: 1, label: 'I want' }, { number: 2, label: 'I offer' }, { number: 3, label: 'Review' }].map(entry => <button type="button" key={entry.number} className={`trade-wizard-step${step === entry.number ? ' active' : ''}${step > entry.number ? ' complete' : ''}`} onClick={() => { if (entry.number < step) { setError(''); setStep(entry.number as 1 | 2 | 3) } }} disabled={entry.number > step}><span>{step > entry.number ? <Check size={13} /> : entry.number}</span>{entry.label}</button>)}</nav>
+    {step < 3 ? <TradeItemPicker step={pickerStep} items={items} lines={lines} onChange={setSide} /> : <div className="trade-review-layout"><TradeReviewSide title="YOU OFFER" tone="offer" lines={offer} items={items} onChange={setOffer} /><div className="trade-review-swap"><ArrowLeftRight size={20} /></div><TradeReviewSide title="YOU WANT" tone="want" lines={want} items={items} onChange={setWant} /><label className="trade-message-field"><span>Note <small>optional</small></span><textarea value={message} maxLength={300} onChange={event => setMessage(event.target.value)} placeholder="Add a short note for other players…" /><small>{message.length}/300</small></label></div>}
     {error && <p className="trade-composer-error" role="alert">{error}</p>}
-    <footer className="trade-composer-footer"><span><ShieldCheck size={14} /> Your name comes from the connected Roblox/Discord account.</span><button type="button" className="trade-publish-button" onClick={publish} disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{saving ? 'Publishing…' : 'Publish offer'}</button></footer>
+    <footer className="trade-composer-footer"><span><ShieldCheck size={14} /> Your name comes from the connected Roblox/Discord account.</span><div className="trade-wizard-actions">{step > 1 && <button type="button" className="trade-wizard-back" onClick={() => { setError(''); setStep(current => current === 3 ? 2 : 1) }} disabled={saving}>Back</button>}{step < 3 ? <button type="button" className="trade-publish-button" onClick={continueStep}>Continue <ArrowRight size={15} /></button> : <button type="button" className="trade-publish-button" onClick={publish} disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{saving ? 'Publishing…' : 'Publish offer'}</button>}</div></footer>
   </section></div>
 }
 
-function TradeSideEditor({ title, tone, items, lines, onChange }: { title: string; tone: TradeSide; items: Item[]; lines: TradeLine[]; onChange: (lines: TradeLine[]) => void }) {
+function TradeItemPicker({ step, items, lines, onChange }: { step: 1 | 2; items: Item[]; lines: TradeLine[]; onChange: (lines: TradeLine[]) => void }) {
   const [query, setQuery] = useState('')
-  const matches = useMemo(() => query.trim() ? items.filter(item => `${item.name} ${item.category ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8) : [], [items, query])
+  const [category, setCategory] = useState('all')
+  const categories = useMemo(() => [...new Set(items.map(item => item.category).filter((value): value is string => Boolean(value)))].sort(), [items])
+  const matches = useMemo(() => items.filter(item => {
+    const matchesQuery = !query.trim() || `${item.name} ${item.category ?? ''} ${item.rarity ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())
+    return matchesQuery && (category === 'all' || item.category === category)
+  }), [category, items, query])
   const selected = lines.map(line => ({ line, item: items.find(item => item.id === line.id) })).filter((value): value is { line: TradeLine; item: Item } => Boolean(value.item))
   function add(item: Item) {
-    onChange(lines.some(line => line.id === item.id) ? lines.map(line => line.id === item.id ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line) : lines.length < 9 ? [...lines, { id: item.id, quantity: 1 }] : lines)
-    setQuery('')
+    if (lines.some(line => line.id === item.id)) return
+    if (lines.length >= 9) return
+    onChange([...lines, { id: item.id, quantity: 1 }])
   }
   function update(id: string, quantity: number) { onChange(quantity < 1 ? lines.filter(line => line.id !== id) : lines.map(line => line.id === id ? { ...line, quantity: Math.min(99, quantity) } : line)) }
-  return <section className={`trade-editor-side ${tone}`}><div className="trade-editor-heading"><b>{title}</b><span>{selected.length}/9 items</span></div><label className="trade-editor-search"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search items to add…" aria-label={`Search items for ${title}`} /></label>{query && <div className="trade-editor-results">{matches.length ? matches.map(item => <button type="button" key={item.id} onClick={() => add(item)} disabled={lines.length >= 9 && !lines.some(line => line.id === item.id)}><span>{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}</span><b>{item.name}</b><small>{item.category || 'Uncategorized'}</small></button>) : <p>No matching items.</p>}</div>}<div className="trade-editor-selected">{selected.map(({ line, item }) => <article className="trade-editor-item" key={line.id}><div className="trade-editor-item-art">{itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt="" />}</div><div className="trade-editor-item-copy"><b>{item.name}</b><small>{item.category || 'Uncategorized'}</small></div><div className="trade-editor-quantity"><button type="button" onClick={() => update(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`}>+</button></div><button type="button" className="trade-editor-remove" onClick={() => update(line.id, 0)} aria-label={`Remove ${item.name}`}><X size={14} /></button></article>)}{!selected.length && <div className="trade-editor-empty"><Plus size={17} /><span>Search and add items here</span></div>}</div></section>
+  const unitCount = lines.reduce((total, line) => total + line.quantity, 0)
+  return <section className={`trade-item-picker ${step === 1 ? 'want' : 'offer'}`}>
+    <div className="trade-picker-toolbar"><label className="trade-editor-search"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search items…" aria-label="Search trade items" /></label><label className="trade-picker-category"><span>Category</span><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">All items</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label><div className="trade-picker-count"><b>{selected.length}/9</b><span>items · {unitCount} total</span></div></div>
+    <div className="trade-item-grid" aria-label={step === 1 ? 'Choose items to offer' : 'Choose items you want'}>{matches.map(item => {
+      const line = lines.find(entry => entry.id === item.id)
+      const image = itemImage(item.image_path)
+      return <article className={`trade-choice-card${line ? ' selected' : ''}`} key={item.id}><button type="button" className="trade-choice-select" onClick={() => line ? update(item.id, line.quantity + 1) : add(item)} disabled={!line && lines.length >= 9} aria-label={line ? `Add one more ${item.name}` : `Add ${item.name}`}><span className="trade-choice-art">{image ? <img src={image} alt="" loading="lazy" /> : <UserRound size={28} />}{line && <span className="trade-choice-check"><Check size={13} /></span>}</span><b title={item.name}>{item.name}</b><small>{item.category || 'Uncategorized'}</small></button>{line ? <div className="trade-choice-quantity"><button type="button" onClick={() => update(item.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(item.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div> : <span className="trade-choice-hint">Select item</span>}</article>
+    })}{!matches.length && <div className="trade-picker-no-results">No items match your search.</div>}</div>
+    {lines.length >= 9 && <p className="trade-picker-limit">You can choose up to 9 different item types per side.</p>}
+  </section>
+}
+
+function TradeReviewSide({ title, tone, lines, items, onChange }: { title: string; tone: TradeSide; lines: TradeLine[]; items: Item[]; onChange: (lines: TradeLine[]) => void }) {
+  const selected = lines.map(line => ({ line, item: items.find(item => item.id === line.id) })).filter((entry): entry is { line: TradeLine; item: Item } => Boolean(entry.item))
+  const total = selected.reduce((sum, entry) => sum + (entry.item.value ?? 0) * entry.line.quantity, 0)
+  function update(id: string, quantity: number) { onChange(quantity < 1 ? lines.filter(line => line.id !== id) : lines.map(line => line.id === id ? { ...line, quantity: Math.min(99, quantity) } : line)) }
+  return <section className={`trade-review-side ${tone}`}><header><b>{title}</b><span>{selected.reduce((sum, entry) => sum + entry.line.quantity, 0)} total</span></header><div className="trade-review-items">{selected.map(({ line, item }) => <article className="trade-review-item" key={line.id}><div className="trade-review-art">{itemImage(item.image_path) ? <img src={itemImage(item.image_path)!} alt="" /> : <UserRound size={22} />}</div><div className="trade-review-copy"><b>{item.name}</b><small>{item.category || 'Uncategorized'}</small><strong>{item.value == null ? 'Value not set' : `${new Intl.NumberFormat('en-US').format(item.value * line.quantity)} coins`}</strong></div><div className="trade-editor-quantity"><button type="button" onClick={() => update(line.id, line.quantity - 1)} aria-label={`Remove one ${item.name}`}>−</button><span>{line.quantity}</span><button type="button" onClick={() => update(line.id, line.quantity + 1)} aria-label={`Add one ${item.name}`} disabled={line.quantity >= 99}>+</button></div><button type="button" className="trade-editor-remove" onClick={() => update(line.id, 0)} aria-label={`Remove ${item.name}`}><X size={14} /></button></article>)}</div><footer><span>Estimated value</span><b>{total ? `${new Intl.NumberFormat('en-US').format(total)} coins` : 'Value not set'}</b></footer></section>
 }
