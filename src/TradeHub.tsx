@@ -37,6 +37,15 @@ const AUTH_PROVIDERS = [
 
 function identityProvider(identity: UserIdentity) { return identity.provider }
 function identityLabel(provider: string) { return provider === 'custom:roblox' ? 'Roblox' : provider === 'discord' ? 'Discord' : provider }
+const ROBLOX_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/?tab=trades&roblox_auth=complete'
+function clearRobloxCallbackCredentials() {
+  const url = new URL(window.location.href)
+  for (const key of ['roblox_auth', 'code', 'flow_id', 'sb_flow_id']) url.searchParams.delete(key)
+  // The Trades page does not use a hash route. Remove OAuth tokens/errors from
+  // the fragment after Supabase has consumed the callback.
+  url.hash = ''
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
+}
 function relativeTime(value: string) {
   const elapsed = Math.max(0, Date.now() - new Date(value).getTime())
   const minutes = Math.floor(elapsed / 60_000)
@@ -66,13 +75,19 @@ export function TradeHub({ items }: { items: Item[] }) {
 
   useEffect(() => {
     const url = new URL(window.location.href)
-    const error = url.searchParams.get('error_description') || url.searchParams.get('error')
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ''))
+    const error = url.searchParams.get('error_description') || url.searchParams.get('error') || fragment.get('error_description') || fragment.get('error')
     if (!error) return
+    robloxAuthReturn.current = false
     setNotice(`Roblox authorization failed: ${error.slice(0, 240)}`)
     url.searchParams.delete('error')
     url.searchParams.delete('error_description')
     url.searchParams.delete('error_code')
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    url.searchParams.delete('code')
+    url.searchParams.delete('flow_id')
+    url.searchParams.delete('sb_flow_id')
+    url.hash = ''
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
   }, [])
 
   const refreshIdentities = useCallback(async () => {
@@ -80,7 +95,16 @@ export function TradeHub({ items }: { items: Item[] }) {
     const { data: sessionData } = await tradeAuth.auth.getSession()
     const userId = sessionData.session?.user.id ?? null
     setSessionUserId(userId)
-    if (!userId) { setIdentities([]); setRobloxProfile(null); setIdentityBusy(false); return }
+    if (!userId) {
+      setIdentities([]); setRobloxProfile(null); setIdentityBusy(false)
+      if (robloxAuthReturn.current) {
+        setNotice('Roblox returned without an active Turbo Soccer session. Please reconnect Roblox and approve the site access request.')
+        robloxAuthReturn.current = false
+        clearRobloxCallbackCredentials()
+      }
+      return
+    }
+    if (robloxAuthReturn.current) clearRobloxCallbackCredentials()
     setIdentityBusy(true)
     const { data, error } = await tradeAuth.auth.getUserIdentities()
     const currentIdentities = error ? [] : data.identities
@@ -98,9 +122,6 @@ export function TradeHub({ items }: { items: Item[] }) {
       }
       if (robloxAuthReturn.current) {
         robloxAuthReturn.current = false
-        const url = new URL(window.location.href)
-        url.searchParams.delete('roblox_auth')
-        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
       }
     }
     setIdentityBusy(false)
@@ -149,7 +170,7 @@ export function TradeHub({ items }: { items: Item[] }) {
     setNotice('')
     try {
       const options = {
-        redirectTo: provider === 'custom:roblox' ? `${window.location.origin}/?tab=trades&roblox_auth=complete` : `${window.location.origin}/?tab=trades`,
+        redirectTo: provider === 'custom:roblox' ? ROBLOX_PRODUCTION_CALLBACK : `${window.location.origin}/?tab=trades`,
         scopes: provider === 'discord' ? 'identify' : 'openid profile',
       }
       const linked = connectedProviders.has(provider)

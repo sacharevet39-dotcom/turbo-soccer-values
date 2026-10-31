@@ -4,9 +4,19 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const configured = Boolean(url && key && !url.includes('your-project'))
-export const supabase = configured ? createClient(url!, key!) : null
+// Admin auth uses password/session APIs only. Do not let it consume the separate
+// public Trades OAuth callback or its credentials from the URL.
+export const supabase = configured ? createClient(url!, key!, { auth: { detectSessionInUrl: false } }) : null
 // Keep public player sign-in separate from the admin session in this browser.
-export const tradeAuth = configured ? createClient(url!, key!, { auth: { storageKey: 'tvs-trade-auth' } }) : null
+export const tradeAuth = configured ? createClient(url!, key!, {
+  auth: {
+    storageKey: 'tvs-trade-auth',
+    // Keep OAuth credentials out of URL fragments and exchange one-time codes
+    // through the PKCE verifier kept in this browser's trade-auth storage.
+    flowType: 'pkce',
+    detectSessionInUrl: true,
+  },
+}) : null
 
 export type Item = {
   id: string
