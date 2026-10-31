@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Provider, UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, Check, Clock3, ExternalLink, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, Check, Clock3, ExternalLink, LoaderCircle, LogOut, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, tradeAuth } from './lib/supabase'
 
@@ -62,6 +62,7 @@ export function TradeHub({ items }: { items: Item[] }) {
   const [identities, setIdentities] = useState<UserIdentity[]>([])
   const [robloxProfile, setRobloxProfile] = useState<RobloxTradeProfile | null>(null)
   const [identityBusy, setIdentityBusy] = useState(false)
+  const [revokingSessions, setRevokingSessions] = useState(false)
   const [activeProvider, setActiveProvider] = useState<string | null>(null)
   const [listings, setListings] = useState<TradeListing[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,7 +77,7 @@ export function TradeHub({ items }: { items: Item[] }) {
   useEffect(() => {
     const url = new URL(window.location.href)
     const fragment = new URLSearchParams(url.hash.replace(/^#/, ''))
-    const error = url.searchParams.get('error_description') || url.searchParams.get('error') || fragment.get('error_description') || fragment.get('error')
+    const error = url.searchParams.get('error_description') || url.searchParams.get('error') || url.searchParams.get('error_code') || fragment.get('error_description') || fragment.get('error') || fragment.get('error_code')
     if (!error) return
     robloxAuthReturn.current = false
     setNotice(`Roblox authorization failed: ${error.slice(0, 240)}`)
@@ -188,6 +189,21 @@ export function TradeHub({ items }: { items: Item[] }) {
     finally { setActiveProvider(null) }
   }
 
+  async function revokeTradeSessions() {
+    if (!tradeAuth || !sessionUserId || revokingSessions) return
+    if (!window.confirm('Sign out of all Turbo Soccer trade sessions on every device? You can reconnect Roblox afterwards.')) return
+    setRevokingSessions(true)
+    const { error } = await tradeAuth.auth.signOut({ scope: 'global' })
+    if (error) setNotice(`Could not revoke trade sessions: ${errorMessage(error)}`)
+    else {
+      setSessionUserId(null)
+      setIdentities([])
+      setRobloxProfile(null)
+      setNotice('All Turbo Soccer trade refresh sessions have been revoked. Reconnect Roblox to create a fresh session.')
+    }
+    setRevokingSessions(false)
+  }
+
   async function publishListing(offer: TradeLine[], want: TradeLine[], message: string) {
     if (!tradeAuth || saving) return
     setSaving(true); setNotice('')
@@ -219,6 +235,7 @@ export function TradeHub({ items }: { items: Item[] }) {
         </button>
       })}</div>
       {robloxProfile && <a className="trade-roblox-profile" href={robloxProfile.roblox_profile_url} target="_blank" rel="noreferrer"><span className="trade-roblox-avatar">{robloxProfile.roblox_avatar_url ? <img src={robloxProfile.roblox_avatar_url} alt="" /> : <UserRound size={17} />}</span><span><b>{robloxProfile.roblox_display_name}</b><small>@{robloxProfile.roblox_username} · Roblox ID {robloxProfile.roblox_user_id}</small></span><ExternalLink size={14} /></a>}
+      {sessionUserId && <button type="button" className="trade-revoke-sessions" onClick={() => void revokeTradeSessions()} disabled={revokingSessions} title="Revokes refresh tokens for all Turbo Soccer trade sessions; access tokens expire normally."><LogOut size={14} />{revokingSessions ? 'Revoking…' : 'Revoke all sessions'}</button>}
     </section>
 
     {notice && <div className="trade-hub-notice" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Dismiss message"><X size={15} /></button></div>}
