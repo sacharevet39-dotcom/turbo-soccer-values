@@ -39,6 +39,7 @@ export type PriceTrend = {
 }
 
 export type PricePoint = {
+  id: number
   value: number
   recorded_at: string
 }

@@ -355,7 +355,7 @@ function PriceTrendIndicator({ trend, compact = false }: { trend?: PriceTrend | 
   return <span className={`price-trend price-trend-${direction}${compact ? ' compact' : ''}`} aria-label={change == null ? `Price ${label.toLowerCase()}` : `Price ${label.toLowerCase()} ${change.toFixed(1)} percent`} title={change == null ? `Price ${label.toLowerCase()}` : `${label} ${change.toFixed(1)}% since the previous value`}><Icon size={compact ? 14 : 17} strokeWidth={2.4} /><span>{label}</span></span>
 }
 
-function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[] }) {
+function PriceHistoryChart({ item, history, canManageHistory = false, deletingPointId, actionMessage, onDeletePoint }: { item: Item; history: PricePoint[]; canManageHistory?: boolean; deletingPointId?: number | null; actionMessage?: string; onDeletePoint?: (point: PricePoint) => void }) {
   const width = 1000, height = 300, left = 62, right = 24, top = 22, bottom = 43
   const plotWidth = width - left - right, plotHeight = height - top - bottom
   const points = history.filter(point => Number.isFinite(point.value)).slice(-500)
@@ -388,11 +388,12 @@ function PriceHistoryChart({ item, history }: { item: Item; history: PricePoint[
         <defs><linearGradient id="price-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#77d45c" stopOpacity=".24" /><stop offset="100%" stopColor="#77d45c" stopOpacity="0" /></linearGradient></defs>
         {ticks.map((tick, index) => <g key={index}><line x1={left} x2={width - right} y1={top + index * plotHeight / 4} y2={top + index * plotHeight / 4} className="price-chart-gridline" /><text x={left - 10} y={top + index * plotHeight / 4 + 4} textAnchor="end" className="price-chart-label">{number(tick)}</text></g>)}
         <path d={area} fill="url(#price-chart-fill)" /><path d={line} className="price-chart-line" />
-        {points.map((point, index) => (index === 0 || index === points.length - 1 || points.length < 8) && <circle key={`${point.recorded_at}-${index}`} cx={x(index)} cy={y(point.value)} r={points.length === 1 ? 5 : 3} className="price-chart-point"><title>{number(point.value)} · {date(point.recorded_at)}</title></circle>)}
+        {points.map((point, index) => <circle key={point.id} cx={x(index)} cy={y(point.value)} r={canManageHistory ? 6 : points.length === 1 ? 5 : 3} className={`price-chart-point${canManageHistory ? ' admin-editable' : ''}${deletingPointId === point.id ? ' deleting' : ''}`} role={canManageHistory ? 'button' : undefined} tabIndex={canManageHistory ? 0 : undefined} aria-label={canManageHistory ? `Delete price point ${number(point.value)} from ${date(point.recorded_at)}` : undefined} aria-disabled={deletingPointId === point.id || undefined} onClick={canManageHistory && deletingPointId !== point.id ? () => onDeletePoint?.(point) : undefined} onKeyDown={canManageHistory && deletingPointId !== point.id ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onDeletePoint?.(point) } } : undefined}><title>{number(point.value)} · {date(point.recorded_at)}{canManageHistory ? ' · Click to delete this point' : ''}</title></circle>)}
         {[...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].filter(index => index >= 0).map(index => <text key={`${points[index].recorded_at}-${index}`} x={index === 0 ? left : index === points.length - 1 ? width - right : x(index)} y={height - 12} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} className="price-chart-label">{date(points[index].recorded_at)}</text>)}
       </svg> : <div className="price-chart-empty"><span className="price-chart-empty-line" /><b>History begins with the next price update</b><small>This chart will grow whenever the item value changes.</small></div>}
     </div>
-    <div className="price-history-footer"><span><i /> VALUE</span><span>{date(points[0]?.recorded_at)}{points.length > 1 ? ` – ${date(points.at(-1)?.recorded_at)}` : ''}</span><PriceTrendIndicator trend={points.length ? { item_id: item.id, current_value: latest, previous_value: points.length > 1 ? points.at(-2)!.value : latest } : undefined} /></div>
+    <div className="price-history-footer"><span><i /> VALUE</span><span>{date(points[0]?.recorded_at)}{points.length > 1 ? ` – ${date(points.at(-1)?.recorded_at)}` : ''}</span>{canManageHistory && <span className="history-admin-hint"><Trash2 size={13} /> Click a point to delete it</span>}<PriceTrendIndicator trend={points.length ? { item_id: item.id, current_value: latest, previous_value: points.length > 1 ? points.at(-2)!.value : latest } : undefined} /></div>
+    {actionMessage && <p className="history-action-message" role="status">{actionMessage}</p>}
   </section>
 }
 
@@ -428,6 +429,9 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   const [related, setRelated] = useState<Item[]>([])
   const [relatedTrends, setRelatedTrends] = useState<Record<string, PriceTrend>>({})
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([])
+  const [canManageHistory, setCanManageHistory] = useState(false)
+  const [deletingPointId, setDeletingPointId] = useState<number | null>(null)
+  const [historyActionMessage, setHistoryActionMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -443,7 +447,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
         const found = data as Item
         setItem(found)
         document.title = `${found.name} · Turbo Soccer Values`
-        const historyResult = await supabase.from('item_price_history').select('value,recorded_at').eq('item_id', found.id).order('recorded_at', { ascending: false }).limit(1000)
+        const historyResult = await supabase.from('item_price_history').select('id,value,recorded_at').eq('item_id', found.id).order('recorded_at', { ascending: false }).order('id', { ascending: false }).limit(1000)
         if (alive && !historyResult.error) setPriceHistory(((historyResult.data ?? []) as PricePoint[]).reverse())
         if (found.category) {
           const result = await supabase.from('items').select('*').eq('category', found.category).neq('id', found.id).limit(4)
@@ -461,6 +465,48 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
     })()
     return () => { alive = false }
   }, [itemId])
+  useEffect(() => {
+    if (!supabase) return
+    let alive = true
+    const checkAdmin = async () => {
+      const { data: auth } = await supabase!.auth.getSession()
+      if (!auth.session) { if (alive) setCanManageHistory(false); return }
+      const { data, error: accessError } = await supabase!.rpc('is_turbo_admin')
+      if (alive) setCanManageHistory(!accessError && data === true)
+    }
+    void checkAdmin()
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      if (alive) setCanManageHistory(false)
+      window.setTimeout(() => { if (alive) void checkAdmin() }, 0)
+    })
+    return () => { alive = false; data.subscription.unsubscribe() }
+  }, [itemId])
+  async function deletePricePoint(point: PricePoint) {
+    if (!supabase || !canManageHistory || deletingPointId !== null) return
+    const isCurrent = priceHistory.at(-1)?.id === point.id
+    const question = isCurrent
+      ? `Delete the ${new Intl.NumberFormat('en-US').format(point.value)} price point? The current item value will be restored to the previous recorded price.`
+      : `Delete the ${new Intl.NumberFormat('en-US').format(point.value)} price point from the history?`
+    if (!window.confirm(question)) return
+    setDeletingPointId(point.id); setHistoryActionMessage('')
+    const { data: result, error: deleteError } = await supabase.rpc('turbo_delete_item_price_point', { p_item_id: itemId, p_history_id: point.id })
+    if (deleteError) {
+      setHistoryActionMessage(`Could not delete this price point: ${errorMessage(deleteError)}`)
+      setDeletingPointId(null)
+      return
+    }
+    const [itemResult, historyResult] = await Promise.all([
+      supabase.from('items').select('*').eq('id', itemId).maybeSingle(),
+      supabase.from('item_price_history').select('id,value,recorded_at').eq('item_id', itemId).order('recorded_at', { ascending: false }).order('id', { ascending: false }).limit(1000),
+    ])
+    if (itemResult.data) setItem(itemResult.data as Item)
+    if (!historyResult.error) setPriceHistory(((historyResult.data ?? []) as PricePoint[]).reverse())
+    const outcome = result as { current_changed?: boolean; current_value?: number | null } | null
+    setHistoryActionMessage(outcome?.current_changed
+      ? outcome.current_value == null ? 'Price point deleted. The current value was cleared because no earlier price remains.' : 'Price point deleted. The current value was restored to the previous recorded price.'
+      : 'Price point deleted from history.')
+    setDeletingPointId(null)
+  }
   async function share() {
     try { await navigator.clipboard.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1800) }
     catch { setError('Could not copy the item link. Copy it from your browser address bar.') }
@@ -468,7 +514,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   return <div className="app-shell"><SiteNav activeView="values" />
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
       <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><PriceTrendIndicator trend={priceHistory.length ? { item_id: item.id, current_value: priceHistory.at(-1)!.value, previous_value: priceHistory.length > 1 ? priceHistory.at(-2)!.value : priceHistory.at(-1)!.value } : undefined} /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
-      <PriceHistoryChart item={item} history={priceHistory} />
+      <PriceHistoryChart item={item} history={priceHistory} canManageHistory={canManageHistory} deletingPointId={deletingPointId} actionMessage={historyActionMessage} onDeletePoint={deletePricePoint} />
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} trend={relatedTrends[entry.id]} />)}</div></section>}
     </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer></div>
 }
