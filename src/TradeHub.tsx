@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Provider, UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, Check, Clock3, ExternalLink, LoaderCircle, LogOut, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { UserIdentity } from '@supabase/supabase-js'
+import { ArrowLeftRight, BadgeCheck, Clock3, ExternalLink, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
-import { errorMessage, itemImage, tradeAuth } from './lib/supabase'
+import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
 
 type TradeLine = { id: string; quantity: number }
 type TradeSide = 'offer' | 'want'
@@ -15,37 +15,18 @@ type TradeListing = {
   trader_name: string
   trader_avatar_url: string | null
   trader_profile_url: string | null
+  trader_handle: string | null
+  trader_is_admin: boolean
+  trader_admin_role: string | null
+  trader_admin_display_name: string | null
+  trader_admin_title: string | null
+  trader_admin_title_color: string | null
   message: string
   status: 'open' | 'closed'
   created_at: string
   trade_listing_items: TradeListingItem[]
 }
-type RobloxTradeProfile = {
-  user_id: string
-  roblox_user_id: string
-  roblox_username: string
-  roblox_display_name: string
-  roblox_profile_url: string
-  roblox_avatar_url: string | null
-  updated_at: string
-}
-
-const AUTH_PROVIDERS = [
-  { id: 'custom:roblox' as Provider, label: 'Roblox', icon: 'R', description: 'Show your verified Roblox profile to other traders.' },
-  { id: 'discord' as Provider, label: 'Discord', icon: 'D', description: 'Use your verified Discord account to contact traders.' },
-] as const
-
-function identityProvider(identity: UserIdentity) { return identity.provider }
 function identityLabel(provider: string) { return provider === 'custom:roblox' ? 'Roblox' : provider === 'discord' ? 'Discord' : provider }
-const ROBLOX_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/?tab=trades&roblox_auth=complete'
-function clearRobloxCallbackCredentials() {
-  const url = new URL(window.location.href)
-  for (const key of ['roblox_auth', 'code', 'flow_id', 'sb_flow_id']) url.searchParams.delete(key)
-  // The Trades page does not use a hash route. Remove OAuth tokens/errors from
-  // the fragment after Supabase has consumed the callback.
-  url.hash = ''
-  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
-}
 function relativeTime(value: string) {
   const elapsed = Math.max(0, Date.now() - new Date(value).getTime())
   const minutes = Math.floor(elapsed / 60_000)
@@ -60,10 +41,7 @@ function relativeTime(value: string) {
 export function TradeHub({ items }: { items: Item[] }) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null)
   const [identities, setIdentities] = useState<UserIdentity[]>([])
-  const [robloxProfile, setRobloxProfile] = useState<RobloxTradeProfile | null>(null)
-  const [identityBusy, setIdentityBusy] = useState(false)
-  const [revokingSessions, setRevokingSessions] = useState(false)
-  const [activeProvider, setActiveProvider] = useState<string | null>(null)
+  const [adminMode, setAdminMode] = useState(false)
   const [listings, setListings] = useState<TradeListing[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -72,67 +50,29 @@ export function TradeHub({ items }: { items: Item[] }) {
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
-  const robloxAuthReturn = useRef(new URLSearchParams(window.location.search).get('roblox_auth') === 'complete')
-
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    const fragment = new URLSearchParams(url.hash.replace(/^#/, ''))
-    const error = url.searchParams.get('error_description') || url.searchParams.get('error') || url.searchParams.get('error_code') || fragment.get('error_description') || fragment.get('error') || fragment.get('error_code')
-    if (!error) return
-    robloxAuthReturn.current = false
-    setNotice(`Roblox authorization failed: ${error.slice(0, 240)}`)
-    url.searchParams.delete('error')
-    url.searchParams.delete('error_description')
-    url.searchParams.delete('error_code')
-    url.searchParams.delete('code')
-    url.searchParams.delete('flow_id')
-    url.searchParams.delete('sb_flow_id')
-    url.hash = ''
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
-  }, [])
 
   const refreshIdentities = useCallback(async () => {
-    if (!tradeAuth) return
-    const { data: sessionData } = await tradeAuth.auth.getSession()
+    if (!tradeAuth || !supabase) return
+    const { data: mainSession } = await supabase.auth.getSession()
+    const { data: adminData } = mainSession.session ? await supabase.rpc('is_turbo_admin') : { data: false }
+    const isAdmin = adminData === true
+    setAdminMode(isAdmin)
+    const client = isAdmin ? supabase : tradeAuth
+    const { data: sessionData } = await client.auth.getSession()
     const userId = sessionData.session?.user.id ?? null
     setSessionUserId(userId)
-    if (!userId) {
-      setIdentities([]); setRobloxProfile(null); setIdentityBusy(false)
-      if (robloxAuthReturn.current) {
-        setNotice('Roblox returned without an active Turbo Soccer session. Please reconnect Roblox and approve the site access request.')
-        robloxAuthReturn.current = false
-        clearRobloxCallbackCredentials()
-      }
-      return
-    }
-    if (robloxAuthReturn.current) clearRobloxCallbackCredentials()
-    setIdentityBusy(true)
-    const { data, error } = await tradeAuth.auth.getUserIdentities()
-    const currentIdentities = error ? [] : data.identities
+    if (!userId) { setIdentities([]); return }
+    const { data } = await client.auth.getUserIdentities()
+    const currentIdentities = data?.identities ?? []
     setIdentities(currentIdentities)
-    if (!error) {
-      const { data: profile, error: syncError } = await tradeAuth.rpc('sync_my_roblox_trade_profile')
-      if (syncError) {
-        setRobloxProfile(null)
-        if (robloxAuthReturn.current) setNotice(`Roblox connected, but its profile could not be saved: ${errorMessage(syncError)}`)
-      } else {
-        setRobloxProfile(profile as RobloxTradeProfile | null)
-        if (robloxAuthReturn.current) {
-          setNotice(profile ? `Roblox account connected: @${(profile as RobloxTradeProfile).roblox_username}.` : 'Roblox authorization returned without a linked Roblox identity. Please try again; existing accounts may need Supabase identity linking enabled.')
-        }
-      }
-      if (robloxAuthReturn.current) {
-        robloxAuthReturn.current = false
-      }
-    }
-    setIdentityBusy(false)
+    if (currentIdentities.some(identity => identity.provider === 'custom:roblox')) await client.rpc('sync_my_roblox_trade_profile')
   }, [])
 
   const loadListings = useCallback(async () => {
     if (!tradeAuth) { setListings([]); setLoading(false); return }
     const { data, error } = await tradeAuth
       .from('trade_listings')
-      .select('id,user_id,identity_provider,identity_provider_id,trader_name,trader_avatar_url,trader_profile_url,message,status,created_at,trade_listing_items(side,quantity,item:items(*))')
+      .select('id,user_id,identity_provider,identity_provider_id,trader_name,trader_avatar_url,trader_profile_url,trader_handle,trader_is_admin,trader_admin_role,trader_admin_display_name,trader_admin_title,trader_admin_title_color,message,status,created_at,trade_listing_items(side,quantity,item:items(*))')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(60)
@@ -151,13 +91,13 @@ export function TradeHub({ items }: { items: Item[] }) {
   useEffect(() => {
     void refreshIdentities()
     void loadListings()
-    if (!tradeAuth) return
-    const { data } = tradeAuth.auth.onAuthStateChange(() => window.setTimeout(() => { void refreshIdentities(); void loadListings() }, 0))
+    if (!tradeAuth || !supabase) return
+    const { data: tradeEvents } = tradeAuth.auth.onAuthStateChange(() => window.setTimeout(() => { void refreshIdentities(); void loadListings() }, 0))
+    const { data: adminEvents } = supabase.auth.onAuthStateChange(() => window.setTimeout(() => { void refreshIdentities(); void loadListings() }, 0))
     const timer = window.setInterval(() => void loadListings(), 30_000)
-    return () => { data.subscription.unsubscribe(); window.clearInterval(timer) }
+    return () => { tradeEvents.subscription.unsubscribe(); adminEvents.subscription.unsubscribe(); window.clearInterval(timer) }
   }, [loadListings, refreshIdentities])
 
-  const connectedProviders = useMemo(() => new Set(identities.map(identityProvider)), [identities])
   const filteredListings = useMemo(() => listings.filter(listing => {
     const categoryMatch = filter === 'all' || listing.trade_listing_items.some(line => line.item.category === filter)
     const searchMatch = !search.trim() || [listing.trader_name, listing.message, ...listing.trade_listing_items.map(line => line.item.name)].join(' ').toLowerCase().includes(search.trim().toLowerCase())
@@ -165,49 +105,11 @@ export function TradeHub({ items }: { items: Item[] }) {
   }), [filter, listings, search])
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter((category): category is string => Boolean(category)))].sort(), [items])
 
-  async function connectProvider(provider: Provider) {
-    if (!tradeAuth || activeProvider) return
-    setActiveProvider(provider)
-    setNotice('')
-    try {
-      const options = {
-        redirectTo: provider === 'custom:roblox' ? ROBLOX_PRODUCTION_CALLBACK : `${window.location.origin}/?tab=trades`,
-        scopes: provider === 'discord' ? 'identify' : 'openid profile',
-      }
-      const linked = connectedProviders.has(provider)
-      const result = sessionUserId
-        ? linked ? { error: null } : await tradeAuth.auth.linkIdentity({ provider, options })
-        : await tradeAuth.auth.signInWithOAuth({ provider, options })
-      if (result.error) {
-        const detail = errorMessage(result.error)
-        if (/unsupported provider|provider.{0,20}(disabled|not enabled)/i.test(detail)) setNotice(`${identityLabel(provider)} sign-in is not configured yet. The site owner must enable this provider in Supabase Auth.`)
-        else if (/manual.{0,20}link|link.{0,25}identity.{0,20}disabled/i.test(detail)) setNotice('Supabase manual identity linking is disabled. Ask the site owner to enable it before linking a second account.')
-        else setNotice(detail)
-      }
-      else if (sessionUserId && !linked) setNotice(`Continue to ${identityLabel(provider)} to confirm the connection.`)
-    } catch (error) { setNotice(errorMessage(error)) }
-    finally { setActiveProvider(null) }
-  }
-
-  async function revokeTradeSessions() {
-    if (!tradeAuth || !sessionUserId || revokingSessions) return
-    if (!window.confirm('Sign out of all Turbo Soccer trade sessions on every device? You can reconnect Roblox afterwards.')) return
-    setRevokingSessions(true)
-    const { error } = await tradeAuth.auth.signOut({ scope: 'global' })
-    if (error) setNotice(`Could not revoke trade sessions: ${errorMessage(error)}`)
-    else {
-      setSessionUserId(null)
-      setIdentities([])
-      setRobloxProfile(null)
-      setNotice('All Turbo Soccer trade refresh sessions have been revoked. Reconnect Roblox to create a fresh session.')
-    }
-    setRevokingSessions(false)
-  }
-
   async function publishListing(offer: TradeLine[], want: TradeLine[], message: string) {
-    if (!tradeAuth || saving) return
+    const client = adminMode ? supabase : tradeAuth
+    if (!client || saving) return
     setSaving(true); setNotice('')
-    const { error } = await tradeAuth.rpc('create_trade_listing', {
+    const { error } = await client.rpc('create_trade_listing', {
       p_offer_items: offer.map(line => ({ item_id: line.id, quantity: line.quantity })),
       p_want_items: want.map(line => ({ item_id: line.id, quantity: line.quantity })),
       p_message: message.trim(),
@@ -218,26 +120,15 @@ export function TradeHub({ items }: { items: Item[] }) {
   }
 
   async function closeListing(listing: TradeListing) {
-    if (!tradeAuth || !window.confirm(`Close your trade listing with ${listing.trader_name}?`)) return
-    const { error } = await tradeAuth.rpc('close_trade_listing', { p_listing_id: listing.id })
+    const client = adminMode ? supabase : tradeAuth
+    if (!client || !window.confirm(`Close your trade listing with ${listing.trader_name}?`)) return
+    const { error } = await client.rpc('close_trade_listing', { p_listing_id: listing.id })
     if (error) setNotice(errorMessage(error))
     else { setListings(current => current.filter(entry => entry.id !== listing.id)); setNotice('Trade listing closed.') }
   }
 
   const hasTradeIdentity = identities.some(identity => ['discord', 'custom:roblox'].includes(identity.provider))
   return <div className="trade-hub">
-    <section className="trade-account-panel">
-      <div className="trade-account-copy"><span className="trade-account-mark"><ShieldCheck size={19} /></span><div><b>{hasTradeIdentity ? 'Trader account connected' : 'Connect your trader account'}</b><p>{hasTradeIdentity ? 'Your verified account name will be attached to each listing.' : 'Link Roblox or Discord so other players know who they are trading with.'}</p></div></div>
-      <div className="trade-account-actions">{AUTH_PROVIDERS.map(provider => {
-        const connected = connectedProviders.has(provider.id)
-        return <button type="button" key={provider.id} className={`trade-account-button ${provider.id === 'discord' ? 'discord' : 'roblox'}${connected ? ' connected' : ''}`} disabled={identityBusy || Boolean(activeProvider)} onClick={() => void connectProvider(provider.id)}>
-          <span className="trade-provider-icon">{activeProvider === provider.id ? <LoaderCircle className="spin" size={16} /> : connected ? <Check size={16} /> : provider.icon}</span><span>{connected ? `${provider.label} connected` : provider.id === 'custom:roblox' ? sessionUserId ? 'Link Roblox' : 'Connect Roblox' : sessionUserId ? `Link ${provider.label}` : `Continue with ${provider.label}`}</span>
-        </button>
-      })}</div>
-      {robloxProfile && <a className="trade-roblox-profile" href={robloxProfile.roblox_profile_url} target="_blank" rel="noreferrer"><span className="trade-roblox-avatar">{robloxProfile.roblox_avatar_url ? <img src={robloxProfile.roblox_avatar_url} alt="" /> : <UserRound size={17} />}</span><span><b>{robloxProfile.roblox_display_name}</b><small>@{robloxProfile.roblox_username} · Roblox ID {robloxProfile.roblox_user_id}</small></span><ExternalLink size={14} /></a>}
-      {sessionUserId && <button type="button" className="trade-revoke-sessions" onClick={() => void revokeTradeSessions()} disabled={revokingSessions} title="Revokes refresh tokens for all Turbo Soccer trade sessions; access tokens expire normally."><LogOut size={14} />{revokingSessions ? 'Revoking…' : 'Revoke all sessions'}</button>}
-    </section>
-
     {notice && <div className="trade-hub-notice" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Dismiss message"><X size={15} /></button></div>}
 
     <div className="trade-hub-toolbar"><label className="trade-hub-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search player or item…" aria-label="Search trade listings" /></label><label className="trade-hub-filter"><span>Category</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All items</option>{categories.map(category => <option key={category}>{category}</option>)}</select></label><button type="button" className="trade-refresh-button" onClick={() => { setLoading(true); void loadListings() }} aria-label="Refresh trade listings"><RefreshCw size={15} /></button></div>
@@ -253,16 +144,18 @@ export function TradeHub({ items }: { items: Item[] }) {
 }
 
 function TradeListingCard({ listing, own, onClose }: { listing: TradeListing; own: boolean; onClose: () => void }) {
+  const [profileOpen, setProfileOpen] = useState(false)
   const offer = listing.trade_listing_items.filter(line => line.side === 'offer')
   const want = listing.trade_listing_items.filter(line => line.side === 'want')
   const value = (lines: TradeListingItem[]) => lines.reduce((total, line) => total + (line.item.value ?? 0) * line.quantity, 0)
   const contactLabel = listing.identity_provider === 'custom:roblox' ? 'View Roblox profile' : 'View Discord profile'
-  return <article className="trade-listing-card">
-    <div className="trade-listing-player"><div className="trade-player-avatar">{listing.trader_avatar_url ? <img src={listing.trader_avatar_url} alt="" loading="lazy" /> : <UserRound size={23} />}</div><div className="trade-player-info"><b>{listing.trader_name}</b><span className="trade-player-platform"><i className={listing.identity_provider === 'discord' ? 'discord' : 'roblox'} />Verified {identityLabel(listing.identity_provider)}</span>{listing.identity_provider === 'custom:roblox' && <small className="trade-player-roblox-id">Roblox ID · {listing.identity_provider_id}</small>}<small><Clock3 size={12} />{relativeTime(listing.created_at)}</small></div></div>
+  return <article className={`trade-listing-card${listing.trader_is_admin ? ' from-admin' : ''}`}>
+    <button type="button" className="trade-listing-player" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}><div className="trade-player-avatar">{listing.trader_avatar_url || listing.identity_provider === "custom:roblox" ? <img src={listing.trader_avatar_url || `https://www.roblox.com/headshot-thumbnail/image?userId=${encodeURIComponent(listing.identity_provider_id)}&width=150&height=150&format=png`} alt="" loading="lazy" /> : <UserRound size={23} />}</div><div className="trade-player-info"><b>{listing.trader_name}</b>{listing.trader_handle && <small className="trade-player-handle">@{listing.trader_handle}</small>}<span className="trade-player-platform"><i className={listing.identity_provider === 'discord' ? 'discord' : 'roblox'} />Verified {identityLabel(listing.identity_provider)}</span>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Verified Owner' : 'Verified Admin'}{listing.trader_admin_title ? ` · ${listing.trader_admin_title}` : ''}</span>}<small><Clock3 size={12} />{relativeTime(listing.created_at)}</small></div><span className="trade-profile-chevron">{profileOpen ? 'Hide profile' : 'View profile'}</span></button>
+    {profileOpen && <div className="trade-player-profile-detail">{listing.trader_avatar_url && <img src={listing.trader_avatar_url} alt={`${listing.trader_name}'s Roblox avatar`} /> }<div><b>{listing.trader_admin_display_name || listing.trader_name}</b><small>{listing.identity_provider === 'custom:roblox' ? `Roblox ID · ${listing.identity_provider_id}` : `Discord ID · ${listing.identity_provider_id}`}</small>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Turbo Soccer Owner' : 'Turbo Soccer Admin'}</span>}</div>{listing.trader_profile_url && <a href={listing.trader_profile_url} target="_blank" rel="noreferrer" aria-label={contactLabel}><ExternalLink size={15} /></a>}</div>}
     <TradeListingItems title="OFFERING" tone="offer" lines={offer} total={value(offer)} />
     <span className="trade-listing-swap"><ArrowLeftRight size={19} /></span>
     <TradeListingItems title="LOOKING FOR" tone="want" lines={want} total={value(want)} />
-    <div className="trade-listing-actions">{listing.trader_profile_url && <a href={listing.trader_profile_url} target="_blank" rel="noreferrer" className="trade-contact-button"><ExternalLink size={15} />{contactLabel}</a>}{own && <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={14} /> Close offer</button>}</div>
+    <div className="trade-listing-actions">{own && <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={14} /> Close offer</button>}</div>
     {listing.message && <p className="trade-listing-message">“{listing.message}”</p>}
   </article>
 }

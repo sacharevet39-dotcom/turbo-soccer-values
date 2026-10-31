@@ -9,6 +9,7 @@ import { sourceImages } from './catalogImages'
 import { AdminManagement, AdminSelfSettings } from './admin/AdminManagement'
 import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../shared/password-policy.js'
 import { TradeHub } from './TradeHub'
+import { NavIdentityMenu } from './NavIdentityMenu'
 
 const PAGE_SIZE = 24
 const CATEGORY_OPTIONS = ['Car', 'Pattern', 'Color', 'Wheels', 'Boost', 'Trail', 'Goal Explosion', 'Demolition Explosion', 'Ball', 'Hat', 'Banner', 'Border', 'Title', 'Horn', 'Plate', 'Finish']
@@ -125,7 +126,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
       {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
       {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
     </nav>
-    <div className="top-actions"><OnlineCount /><VisitCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
+    <div className="top-actions"><OnlineCount /><VisitCount /><NavIdentityMenu /></div>
   </header>
 }
 
@@ -239,7 +240,7 @@ function PublicApp() {
       </section>
     </main>
     <AdminIdentities />
-    <footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Community values · Not affiliated with Roblox</span><span>Values are a guide. Agree on a trade with the other player.</span></footer>
+    <footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Community values · Not affiliated with Roblox</span><span>Values are a guide. Agree on a trade with the other player.</span><a className="footer-admin-link" href="/admin">Admin access</a></footer>
   </div>
 }
 
@@ -313,19 +314,21 @@ function VisitCount() {
 }
 
 function AdminIdentities() {
-  const [profiles, setProfiles] = useState<Array<{ display_name: string; title: string; title_color: string; online: boolean }>>([])
+  const [profiles, setProfiles] = useState<Array<{ display_name: string; title: string; title_color: string; online: boolean; role: string; roblox_username: string | null; roblox_display_name: string | null; roblox_user_id: string | null; roblox_profile_url: string | null; roblox_avatar_url: string | null }>>([])
   useEffect(() => {
     if (!supabase) return
     let active = true
     const load = async () => {
-      const { data } = await supabase!.from('turbo_admin_profiles').select('display_name,title,title_color,online').order('display_name').limit(12)
-      if (active && data) setProfiles(data)
+      const { data } = await supabase!.rpc('get_turbo_admin_profiles')
+      if (active && data) setProfiles(data.slice(0, 12))
     }
     void load()
-    return () => { active = false }
+    const refresh = () => void load()
+    window.addEventListener('tvs:admin-profile-updated', refresh)
+    return () => { active = false; window.removeEventListener('tvs:admin-profile-updated', refresh) }
   }, [])
   if (!profiles.length) return null
-  return <section className="community-admins"><div className="community-admins-heading"><div className="eyebrow section-eyebrow">THE TEAM</div><h2>Community admins</h2></div><div className="community-admin-list">{profiles.map((profile, index) => <div className="community-admin" key={`${profile.display_name}-${index}`}><span className="community-admin-status"><i className={profile.online ? 'online' : ''} /></span><div><b>{profile.display_name}</b><small style={{ color: profile.title_color }}>{profile.title}</small></div></div>)}</div></section>
+  return <section className="community-admins"><div className="community-admins-heading"><div className="eyebrow section-eyebrow">THE TEAM</div><h2>Community admins</h2></div><div className="community-admin-list">{profiles.map((profile, index) => <a className="community-admin" href={profile.roblox_profile_url || '#team'} onClick={event => { if (!profile.roblox_profile_url) event.preventDefault() }} target={profile.roblox_profile_url ? '_blank' : undefined} rel="noreferrer" key={`${profile.display_name}-${index}`}><span className="community-admin-skin">{profile.roblox_avatar_url || profile.roblox_user_id ? <img src={profile.roblox_avatar_url || `https://www.roblox.com/headshot-thumbnail/image?userId=${encodeURIComponent(profile.roblox_user_id!)}&width=150&height=150&format=png`} alt={`${profile.roblox_display_name || profile.display_name}'s Roblox avatar`} loading="lazy" /> : <UserRound size={20} />}</span><div className="community-admin-info"><b>{profile.roblox_display_name || profile.display_name}</b><small>{profile.roblox_username ? `@${profile.roblox_username}` : 'Roblox profile not linked'}</small><span className="community-admin-role"><ShieldCheck size={12} />{profile.role === 'OWNER' ? 'Verified Owner' : 'Verified Admin'} · {profile.title}</span></div><span className={`community-admin-status${profile.online ? ' is-online' : ''}`} title={profile.online ? 'Online' : 'Offline'}><i /></span>{profile.roblox_profile_url && <ExternalLink size={13} className="community-admin-external" />}</a>)}</div></section>
 }
 
 function PromoCodeShowcase({ codes, loading }: { codes: PromoCode[]; loading: boolean }) {
@@ -535,7 +538,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
       <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><PriceTrendIndicator trend={priceHistory.length ? { item_id: item.id, current_value: priceHistory.at(-1)!.value, previous_value: priceHistory.length > 1 ? priceHistory.at(-2)!.value : priceHistory.at(-1)!.value } : undefined} /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
       <PriceHistoryChart item={item} history={priceHistory} canManageHistory={canManageHistory} deletingPointId={deletingPointId} actionMessage={historyActionMessage} onDeletePoint={deletePricePoint} />
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} trend={relatedTrends[entry.id]} />)}</div></section>}
-    </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span></footer></div>
+    </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span><a className="footer-admin-link" href="/admin">Admin access</a></footer></div>
 }
 
 function CoinValue({ value, className = '', compact = false, prefix = '' }: { value: number | null; className?: string; compact?: boolean; prefix?: string }) {
