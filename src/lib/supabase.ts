@@ -6,7 +6,13 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 export const configured = Boolean(url && key && !url.includes('your-project'))
 // Admin auth uses password/session APIs only. Do not let it consume the separate
 // public Trades OAuth callback or its credentials from the URL.
-export const supabase = configured ? createClient(url!, key!, { auth: { flowType: 'pkce', detectSessionInUrl: false } }) : null
+export const supabase = configured ? createClient(url!, key!, {
+  auth: {
+    flowType: 'pkce',
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+}) : null
 // Keep public player sign-in separate from the admin session in this browser.
 export const tradeAuth = configured ? createClient(url!, key!, {
   auth: {
@@ -14,6 +20,7 @@ export const tradeAuth = configured ? createClient(url!, key!, {
     // Keep OAuth credentials out of URL fragments and exchange one-time codes
     // through the PKCE verifier kept in this browser's trade-auth storage.
     flowType: 'pkce',
+    persistSession: true,
     // OAuth callback codes are exchanged by NavIdentityMenu using the client
     // that initiated the flow (player session or separate admin session).
     detectSessionInUrl: false,

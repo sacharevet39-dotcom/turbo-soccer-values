@@ -9,6 +9,7 @@ const providers: Array<{ id: Provider; name: string; icon: 'roblox' | 'discord';
   { id: 'custom:roblox', name: 'Roblox', icon: 'roblox', scopes: 'openid profile' },
   { id: 'discord', name: 'Discord', icon: 'discord', scopes: 'identify' },
 ]
+const ROBLOX_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/?tab=trades&roblox_auth=complete'
 
 function ProviderLogo({ type }: { type: 'roblox' | 'discord' }) {
   return type === 'roblox'
@@ -92,13 +93,24 @@ export function NavIdentityMenu() {
     setBusy(provider.id); setNotice('')
     // Keep Supabase's redirect target on the single production URL allowlisted
     // in Auth settings; the initiating client is remembered per browser tab.
-    const callback = `${window.location.origin}/`
-    try { sessionStorage.setItem('tvs-oauth-client', activeIsAdmin ? 'admin' : 'trade') } catch { /* session storage may be disabled */ }
+    const callback = provider.id === 'custom:roblox' ? ROBLOX_PRODUCTION_CALLBACK : `${window.location.origin}/`
+    try {
+      // Fail closed if we cannot remember which isolated Supabase client started
+      // OAuth; the PKCE verifier belongs to that same client's persistent store.
+      sessionStorage.setItem('tvs-oauth-client', activeIsAdmin ? 'admin' : 'trade')
+    } catch {
+      setNotice('Your browser blocked session storage. Allow site storage, then try connecting again.')
+      setBusy(null)
+      return
+    }
     const options = { redirectTo: callback, scopes: provider.scopes }
     const result = sessionId
       ? await client.auth.linkIdentity({ provider: provider.id, options })
       : await client.auth.signInWithOAuth({ provider: provider.id, options })
-    if (result.error) setNotice(errorMessage(result.error))
+    if (result.error) {
+      try { sessionStorage.removeItem('tvs-oauth-client') } catch { /* ignore storage cleanup failures */ }
+      setNotice(errorMessage(result.error))
+    }
     else if (result.data?.url) window.location.assign(result.data.url)
     setBusy(null)
   }
