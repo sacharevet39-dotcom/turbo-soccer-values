@@ -5,6 +5,8 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const configured = Boolean(url && key && !url.includes('your-project'))
 export const supabase = configured ? createClient(url!, key!) : null
+// Keep public player sign-in separate from the admin session in this browser.
+export const tradeAuth = configured ? createClient(url!, key!, { auth: { storageKey: 'tvs-trade-auth' } }) : null
 
 export type Item = {
   id: string

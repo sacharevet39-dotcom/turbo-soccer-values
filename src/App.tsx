@@ -8,6 +8,7 @@ import { configured, errorMessage, itemImage, supabase, type Item, type PricePoi
 import { sourceImages } from './catalogImages'
 import { AdminManagement, AdminSelfSettings } from './admin/AdminManagement'
 import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../shared/password-policy.js'
+import { TradeHub } from './TradeHub'
 
 const PAGE_SIZE = 24
 const CATEGORY_OPTIONS = ['Car', 'Pattern', 'Color', 'Wheels', 'Boost', 'Trail', 'Goal Explosion', 'Demolition Explosion', 'Ball', 'Hat', 'Banner', 'Border', 'Title', 'Horn', 'Plate', 'Finish']
@@ -72,7 +73,7 @@ function AdminOptionPicker({ label, value, options, icon, onChange }: { label: s
     </div>}
   </div>
 }
-type View = 'values' | 'trade' | 'codes'
+type View = 'values' | 'trade' | 'trades' | 'codes'
 type TradeLine = { id: string; quantity: number }
 type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
 type ColorDraft = { name: string; hex: string }
@@ -121,6 +122,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
     <nav id="site-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
+      {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
       {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
     </nav>
     <div className="top-actions"><OnlineCount /><VisitCount /><a className={`admin-link ${activeView === 'admin' ? 'active' : ''}`} href="/admin" aria-current={activeView === 'admin' ? 'page' : undefined} onClick={closeMenu}><LockKeyhole size={15} /> Admin</a></div>
@@ -130,7 +132,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
 function PublicApp() {
   const [view, setView] = useState<View>(() => {
     const tab = new URLSearchParams(location.search).get('tab')
-    return tab === 'trade' || tab === 'codes' ? tab : 'values'
+    return tab === 'trade' || tab === 'trades' || tab === 'codes' ? tab : 'values'
   })
   const [items, setItems] = useState<Item[]>([])
   const [priceTrends, setPriceTrends] = useState<Record<string, PriceTrend>>({})
@@ -146,6 +148,16 @@ function PublicApp() {
   const [ourSide, setOurSide] = useState<TradeLine[]>([])
   const [autoAdded, setAutoAdded] = useState(false)
   const itemToAdd = new URLSearchParams(location.search).get('item')
+
+  function selectView(next: View) {
+    setView(next)
+    const params = new URLSearchParams(location.search)
+    if (next === 'values') params.delete('tab')
+    else params.set('tab', next)
+    if (next !== 'trade') params.delete('item')
+    const query = params.toString()
+    window.history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`)
+  }
 
   const loadItems = useCallback(async () => {
     if (!supabase) { setItems([]); setLoading(false); return }
@@ -190,7 +202,7 @@ function PublicApp() {
   useEffect(() => setPage(1), [search, category, rarity, sort])
 
   return <div className="app-shell">
-    <SiteNav activeView={view} onViewChange={setView} />
+    <SiteNav activeView={view} onViewChange={selectView} />
     <main>
       <section className="hero">
         <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> ITEM VALUES</div>
@@ -207,7 +219,7 @@ function PublicApp() {
         <div className="hero-collectible-decor" aria-hidden="true">{HERO_ITEM_DECORATIONS.map((src, index) => <img key={src} src={src} alt="" style={{ '--decor-index': index } as React.CSSProperties} />)}</div>
       </section>
       <section className="content-section">
-        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'YOUR TRADE' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
+        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : view === 'trades' ? 'PLAYER MARKET' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : view === 'trades' ? 'Trade board' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : view === 'trades' ? 'Find players, compare offers, and arrange your next trade.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
         </div>
         {view !== 'codes' && !configured && <SetupNotice />}
@@ -223,7 +235,7 @@ function PublicApp() {
             <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} trend={priceTrends[item.id]} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
-        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
+        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : view === 'trades' ? <TradeHub items={items} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
       </section>
     </main>
     <AdminIdentities />

@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './market-theme.css'
 import './feature.css'
+import './trades.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>,
