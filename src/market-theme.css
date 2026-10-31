@@ -181,7 +181,8 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .card-value-label { color: #8e8e8e; font-size: 8px; letter-spacing: .09em; }
 .card-value.coin-value { margin-top: 3px; color: #f2f2f2; font-size: 16px; font-weight: 800; }
 .card-value.coin-value img { width: 21px; height: 21px; }
-.rarity-chip { color: #d1d1d1; border: 1px solid #555; background: #3b3b3b; border-radius: 4px; padding: 3px 5px; font-size: 8px; }
+.rarity-chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 19px; width: fit-content; padding: 3px 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--rarity-color, #c9a2ff) 48%, #28232e); border-radius: 999px; color: var(--rarity-color, #e2c9ff); background: linear-gradient(135deg, color-mix(in srgb, var(--rarity-color, #c9a2ff) 17%, #29252d), #1c1b20 82%); box-shadow: inset 0 1px 0 #ffffff20, 0 2px 8px color-mix(in srgb, var(--rarity-color, #c9a2ff) 12%, transparent); font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: .025em; white-space: nowrap; text-shadow: 0 1px 2px #0008; }
+.rarity-chip::before { content: ''; width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--rarity-color, #c9a2ff); box-shadow: 0 0 7px color-mix(in srgb, var(--rarity-color, #c9a2ff) 75%, transparent); }
 .image-placeholder { background: radial-gradient(ellipse at 50% 45%, #383838, #282828 68%); color: #999; }
 .image-placeholder > span:last-child { font-size: 8px; }
 .loading-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
@@ -695,15 +696,21 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 .demand-stars.interactive .demand-current { min-width: 38px; color: #ffe08b; font-size: 13px; font-weight: 900; text-align: center; }
 .demand-stars.interactive .clear-demand { width: auto; min-width: 54px; padding: 0 10px; border-color: #785894; background: #38115b; color: #eee1f5; font-size: 11px; }
 
-/* Public item cards keep rarity colors and community demand easy to scan. */
-.item-card .rarity-chip.rarity-common, .detail-tags .rarity-chip.rarity-common { color: #f5f5f5; border-color: #d4d4d4; background: #f5f5f51a; }
-.item-card .rarity-chip.rarity-uncommon, .detail-tags .rarity-chip.rarity-uncommon { color: #9af28f; border-color: #4cae55; background: #287d3433; }
-.item-card .rarity-chip.rarity-rare, .detail-tags .rarity-chip.rarity-rare { color: #8ec8ff; border-color: #4e95d7; background: #2879bf33; }
-.item-card .rarity-chip.rarity-epic, .detail-tags .rarity-chip.rarity-epic { color: #d9a0ff; border-color: #a767d4; background: #8334b533; }
-.item-card .rarity-chip.rarity-legendary, .detail-tags .rarity-chip.rarity-legendary { color: #ffb56d; border-color: #cf7d38; background: #bb621f33; }
-.item-card .rarity-chip.rarity-halloween, .detail-tags .rarity-chip.rarity-halloween { color: #ff9b4a; border-color: #e67727; background: #c9541833; }
-.item-card .rarity-chip.rarity-beta, .detail-tags .rarity-chip.rarity-beta { color: #ffdf78; border-color: #c49a38; background: #a9781b40; }
-.item-card .rarity-chip.rarity-exclusive, .detail-tags .rarity-chip.rarity-exclusive { color: #ff9aac; border-color: #d75b76; background: #b8325033; }
+/* A shared, polished rarity badge system for cards, details and admin previews. */
+.rarity-chip.rarity-common { --rarity-color: #d4d9e5; }
+.rarity-chip.rarity-uncommon { --rarity-color: #54e0a0; }
+.rarity-chip.rarity-rare { --rarity-color: #63b9ff; }
+.rarity-chip.rarity-epic { --rarity-color: #cf83ff; }
+.rarity-chip.rarity-legendary { --rarity-color: #ffc45b; }
+.rarity-chip.rarity-halloween { --rarity-color: #ff8c4b; }
+.rarity-chip.rarity-beta { --rarity-color: #ffd44f; }
+.rarity-chip.rarity-exclusive { --rarity-color: #ff76ac; }
+.rarity-chip.rarity-other { --rarity-color: #c8a0ff; }
+.detail-tags > span.rarity-chip { border-color: color-mix(in srgb, var(--rarity-color, #c9a2ff) 48%, #28232e); background: linear-gradient(135deg, color-mix(in srgb, var(--rarity-color, #c9a2ff) 17%, #29252d), #1c1b20 82%); }
+.detail-tags .rarity-chip { min-height: 27px; padding: 5px 11px; font-size: 10px; }
+.item-card-heading .rarity-chip { min-height: 19px; padding-inline: 7px; }
+.preview-item .rarity-chip, .catalogue-name .rarity-chip { min-height: 21px; }
+.item-card:hover .rarity-chip { filter: brightness(1.12); }
 .item-card .card-visual > img { transform: scale(1.5); }
 .item-card:hover .card-visual > img { transform: scale(1.56); }
 .card-demand { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 29px; margin-top: 9px; padding-top: 8px; border-top: 1px solid #383838; }
@@ -927,7 +934,8 @@ body { -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
   .item-card { min-width: 0; border-radius: 7px; }
   .item-card-heading { min-width: 0; min-height: 27px; gap: 3px; padding: 0 5px; }
   .item-card-heading h3 { min-width: 0; font-size: clamp(7px, 2vw, 9px); }
-  .item-card-heading .rarity-chip { max-width: 35px; overflow: hidden; padding: 2px 3px; font-size: 6px; text-overflow: ellipsis; }
+  .item-card-heading .rarity-chip { max-width: 60px; min-width: 0; overflow: hidden; padding: 2px 5px; gap: 3px; font-size: 6px; text-overflow: ellipsis; }
+  .item-card-heading .rarity-chip::before { width: 4px; height: 4px; }
   .card-visual { width: 100%; height: auto; aspect-ratio: 1 / 1; }
   .card-item-art { width: 94%; max-width: none; border-radius: 6px; }
   .card-info { min-width: 0; padding: 5px 5px 6px; }
