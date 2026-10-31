@@ -202,10 +202,10 @@ function PublicApp() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   useEffect(() => setPage(1), [search, category, rarity, sort])
 
-  return <div className="app-shell">
+  return <div className={`app-shell${view === 'trades' ? ' trade-mode' : ''}`}>
     <SiteNav activeView={view} onViewChange={selectView} />
     <main>
-      <section className="hero">
+      {view !== 'trades' && <section className="hero">
         <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> ITEM VALUES</div>
           <h1>Turbo Soccer<br /><span>market</span></h1>
           <p>Check values before you trade.</p>
@@ -218,11 +218,11 @@ function PublicApp() {
           <img src="/brand/turbo-soccer-goal.png" alt="" />
         </div>
         <div className="hero-collectible-decor" aria-hidden="true">{HERO_ITEM_DECORATIONS.map((src, index) => <img key={src} src={src} alt="" style={{ '--decor-index': index } as React.CSSProperties} />)}</div>
-      </section>
-      <section className="content-section">
-        <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : view === 'trades' ? 'PLAYER MARKET' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : view === 'trades' ? 'Trade board' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : view === 'trades' ? 'Find players, compare offers, and arrange your next trade.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
+      </section>}
+      <section className={`content-section${view === 'trades' ? ' trade-content-section' : ''}`}>
+        {view !== 'trades' && <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
-        </div>
+        </div>}
         {view !== 'codes' && !configured && <SetupNotice />}
         {view !== 'codes' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
         {view === 'values' ? <>
