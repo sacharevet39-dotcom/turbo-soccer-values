@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Provider, UserIdentity } from '@supabase/supabase-js'
-import { BadgeCheck, ChevronDown, ExternalLink, LogOut, ShieldCheck, UserRound, X } from 'lucide-react'
+import { BadgeCheck, ChevronDown, ExternalLink, LogOut, ShieldCheck, Unlink, UserRound, X } from 'lucide-react'
+import './identity-menu.css'
 import { errorMessage, supabase, tradeAuth } from './lib/supabase'
 
 type RobloxProfile = { roblox_user_id: string; roblox_username: string; roblox_display_name: string; roblox_profile_url: string; roblox_avatar_url: string | null }
@@ -29,7 +30,7 @@ function hasOAuthVerifier(client: 'admin' | 'trade') {
 function identityConnectionError(provider: string, error: unknown) {
   const message = errorMessage(error)
   if (/manual.{0,24}link|link.{0,24}disabled/i.test(message)) return 'Supabase has manual account linking disabled. Enable identity linking in Authentication settings, then try again.'
-  if (/identity.{0,32}(already|exists|linked)|already.{0,32}(identity|linked)/i.test(message)) return `This ${provider} account is already linked to another Turbo Soccer login. Sign in to that account to use it here.`
+  if (/identity.{0,32}(already|exists|linked)|already.{0,32}(identity|linked)/i.test(message)) return `This ${provider} account is linked to another Turbo Soccer login. Sign in to that account, connect a second login method, disconnect ${provider}, then link it here.`
   return message
 }
 
@@ -160,6 +161,36 @@ export function NavIdentityMenu() {
     } finally { setBusy(null) }
   }
 
+  async function disconnect(provider: typeof providers[number]) {
+    if (!supabase || !tradeAuth || busy) return
+    const client = activeIsAdmin ? supabase : tradeAuth
+    const identity = identities.find(candidate => candidate.provider === provider.id)
+    if (!identity) { setNotice(`${provider.name} is not connected to this account.`); return }
+    if (identities.length < 2) {
+      setNotice(`Connect another sign-in method to this account before disconnecting ${provider.name}.`)
+      return
+    }
+    if (!window.confirm(`Disconnect ${provider.name} from this Turbo Soccer account? You can then connect it to a different account.`)) return
+    setBusy(`unlink:${provider.id}`)
+    setNotice('')
+    try {
+      const { error } = await client.auth.unlinkIdentity(identity)
+      if (error) setNotice(`Could not disconnect ${provider.name}: ${identityConnectionError(provider.name, error)}`)
+      else {
+        const { error: profileCleanupError } = provider.id === 'custom:roblox'
+          ? await client.rpc('sync_my_roblox_trade_profile')
+          : { error: null }
+        setNotice(profileCleanupError
+          ? `${provider.name} disconnected, but the public profile could not be refreshed. Contact an admin before linking it elsewhere.`
+          : `${provider.name} disconnected. You can now link it to the other Turbo Soccer account.`)
+        await refresh()
+        window.dispatchEvent(new Event('tvs:admin-profile-updated'))
+      }
+    } catch (error) {
+      setNotice(`Could not disconnect ${provider.name}: ${identityConnectionError(provider.name, error)}`)
+    } finally { setBusy(null) }
+  }
+
   async function signOut() {
     const client = activeIsAdmin ? supabase : tradeAuth
     if (!client) return
@@ -183,7 +214,11 @@ export function NavIdentityMenu() {
     {open && <><button className="nav-identity-scrim" aria-label="Close account menu" onClick={() => setOpen(false)} /><section className="nav-identity-popover" aria-label="Connected accounts"><header><div><span className="nav-popover-kicker">YOUR ACCOUNT</span><b>{displayName || 'Connect an account'}</b></div><button type="button" onClick={() => setOpen(false)} aria-label="Close"><X size={16} /></button></header>
       {admin && <div className="identity-admin-card"><span className="identity-admin-mark"><BadgeCheck size={16} /></span><span><b>Verified {admin.role === 'OWNER' ? 'Owner' : 'Admin'}</b><small>{admin.title || 'Turbo Soccer team'}</small></span></div>}
       {profile && <a className="identity-roblox-profile" href={profile.roblox_profile_url} target="_blank" rel="noreferrer"><span className="identity-roblox-avatar"><img src={profile.roblox_avatar_url || `https://www.roblox.com/headshot-thumbnail/image?userId=${encodeURIComponent(profile.roblox_user_id)}&width=150&height=150&format=png`} alt="" /></span><span><b>{profile.roblox_display_name}</b><small>@{profile.roblox_username} · ID {profile.roblox_user_id}</small></span><ExternalLink size={14} /></a>}
-      <div className="identity-provider-list">{providers.map(provider => <div className="identity-provider-row" key={provider.id}><span className={`identity-provider-mark ${provider.icon}`}><ProviderLogo type={provider.icon} /></span><span><b>{provider.name}</b><small>{linked.has(provider.id) ? 'Connected and verified' : 'Not connected'}</small></span>{linked.has(provider.id) ? <i className="identity-connected-dot" /> : <button type="button" onClick={() => void connect(provider)} disabled={Boolean(busy)}>{sessionId ? 'Link' : 'Connect'}</button>}</div>)}</div>
+      <div className="identity-provider-list">{providers.map(provider => {
+        const isLinked = linked.has(provider.id)
+        const unlinking = busy === `unlink:${provider.id}`
+        return <div className="identity-provider-row" key={provider.id}><span className={`identity-provider-mark ${provider.icon}`}><ProviderLogo type={provider.icon} /></span><span><b>{provider.name}</b><small>{isLinked ? 'Connected and verified' : 'Not connected'}</small></span>{isLinked ? <div className="identity-provider-actions"><i className="identity-connected-dot" />{identities.length > 1 ? <button className="identity-disconnect-button" type="button" onClick={() => void disconnect(provider)} disabled={Boolean(busy)} title={`Disconnect ${provider.name}`}><Unlink size={12} />{unlinking ? 'Disconnecting…' : 'Disconnect'}</button> : <small className="identity-unlink-hint" title="Add another sign-in method first">Add another login first</small>}</div> : <button type="button" onClick={() => void connect(provider)} disabled={Boolean(busy)}>{busy === provider.id ? 'Connecting…' : sessionId ? 'Link' : 'Connect'}</button>}</div>
+      })}</div>
       {notice && <p className="identity-notice" role="status">{notice}</p>}{sessionId && <div className="identity-account-actions"><button className="identity-signout" type="button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button><button className="identity-signout" type="button" onClick={() => void revokeSessions()}><ShieldCheck size={14} /> Sign out all devices</button></div>}
     </section></>}
   </div>

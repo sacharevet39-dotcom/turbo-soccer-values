@@ -1,0 +1,36 @@
+.identity-provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.identity-provider-actions .identity-connected-dot {
+  flex: none;
+}
+
+.identity-provider-row > button.identity-disconnect-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-color: #5c4545;
+  background: #2a2424;
+  color: #e3caca;
+}
+
+.identity-provider-row > button.identity-disconnect-button:hover:not(:disabled) {
+  border-color: #8a5555;
+  background: #352626;
+  color: #fff;
+}
+
+.identity-provider-row > button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.identity-unlink-hint {
+  color: #a6a6a6;
+  font-size: 9px;
+  white-space: nowrap;
+}
