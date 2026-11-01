@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { Provider, UserIdentity } from '@supabase/supabase-js'
 import { BadgeCheck, ChevronDown, ExternalLink, LogOut, ShieldCheck, Unlink, UserRound, X } from 'lucide-react'
 import './identity-menu.css'
@@ -11,6 +11,7 @@ const providers: Array<{ id: Provider; name: string; icon: 'roblox' | 'discord';
   { id: 'discord', name: 'Discord', icon: 'discord', scopes: 'identify' },
 ]
 const ROBLOX_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/?tab=trades&roblox_auth=complete'
+const EMAIL_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/'
 
 function hasOAuthVerifier(client: 'admin' | 'trade') {
   try {
@@ -49,6 +50,10 @@ export function NavIdentityMenu() {
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [activeIsAdmin, setActiveIsAdmin] = useState(false)
+  const [emailFormOpen, setEmailFormOpen] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
 
   async function refresh() {
     if (!supabase || !tradeAuth) return
@@ -82,6 +87,47 @@ export function NavIdentityMenu() {
     const finishOAuth = async () => {
       const url = new URL(window.location.href)
       const code = url.searchParams.get('code')
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''))
+      let emailClient: 'admin' | 'trade' | null = null
+      try {
+        const marker = sessionStorage.getItem('tvs-email-identity-client') || localStorage.getItem('tvs-email-identity-client')
+        if (marker === 'admin' || marker === 'trade') emailClient = marker
+      } catch { /* Keep account recovery bound to the browser that started it. */ }
+      const emailType = url.searchParams.get('type') || hashParams.get('type')
+      const emailReturn = Boolean(emailClient && (url.searchParams.get('email_auth') === 'complete' || emailType === 'email_change' || (code && url.searchParams.has('flow_id')) || url.searchParams.has('token_hash') || hashParams.has('access_token') || url.searchParams.has('error')))
+      if (emailReturn && emailClient) {
+        const client = emailClient === 'admin' ? supabase : tradeAuth
+        const accessToken = url.searchParams.get('access_token') || hashParams.get('access_token')
+        const refreshToken = url.searchParams.get('refresh_token') || hashParams.get('refresh_token')
+        const tokenHash = url.searchParams.get('token_hash') || hashParams.get('token_hash')
+        const flowId = url.searchParams.get('flow_id')
+        const callbackError = url.searchParams.get('error_description') || url.searchParams.get('error')
+        let emailError: string | null = callbackError ? callbackError.slice(0, 180) : null
+        if (!emailError) {
+          if (!client) emailError = 'The account session could not be opened. Restart this from the same browser.'
+          else if (accessToken && refreshToken) {
+            const { error } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+            emailError = error?.message ?? null
+          } else if (tokenHash && emailType === 'email_change') {
+            const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: 'email_change' })
+            emailError = error?.message ?? null
+          } else if (code && hasOAuthVerifier(emailClient)) {
+            const { error } = await client.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined)
+            emailError = error?.message ?? null
+          } else emailError = 'Email confirmation could not be completed. Open its link in the same browser window where you started it.'
+        }
+
+        if (emailError) setNotice(`Email confirmation failed: ${emailError}`)
+        else if (client) {
+          const { data, error } = await client.auth.getUserIdentities()
+          if (error || !data?.identities.some(identity => identity.provider === 'email')) setNotice('Email confirmed, but the email login is not visible yet. Refresh this page and check your inbox again.')
+          else setNotice('Email login added. You can now disconnect Roblox from this account.')
+        }
+        try { sessionStorage.removeItem('tvs-email-identity-client'); localStorage.removeItem('tvs-email-identity-client') } catch { /* ignore storage cleanup failures */ }
+        for (const key of ['email_auth', 'token_hash', 'type', 'access_token', 'refresh_token']) url.searchParams.delete(key)
+        url.hash = ''
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
+      }
       let oauthClient: 'admin' | 'trade' | null = null
       let oauthProvider: string | null = null
       try {
@@ -95,8 +141,8 @@ export function NavIdentityMenu() {
       const isAdminReturn = oauthClient === 'admin' || url.searchParams.get('admin_identity') === 'complete'
       const isTradeReturn = oauthClient === 'trade' || url.searchParams.get('trade_auth') === 'complete' || url.searchParams.get('roblox_auth') === 'complete'
       const providerError = url.searchParams.get('error_description') || url.searchParams.get('error') || url.searchParams.get('error_code')
-      if (providerError) setNotice(`Connection failed: ${providerError.slice(0, 180)}`)
-      if (code && (isAdminReturn || isTradeReturn)) {
+      if (providerError && !emailReturn) setNotice(`Connection failed: ${providerError.slice(0, 180)}`)
+      if (code && !emailReturn && (isAdminReturn || isTradeReturn)) {
         const client = isAdminReturn ? supabase : tradeAuth
         const flowId = url.searchParams.get('flow_id')
         const hasVerifier = oauthClient ? hasOAuthVerifier(oauthClient) : false
@@ -191,6 +237,43 @@ export function NavIdentityMenu() {
     } finally { setBusy(null) }
   }
 
+  async function addEmailLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase || !tradeAuth || busy) return
+    if (recoveryPassword.length < 8) { setNotice('Use a password with at least 8 characters.'); return }
+    if (recoveryPassword !== recoveryPasswordConfirm) { setNotice('The passwords do not match.'); return }
+    const client = activeIsAdmin ? supabase : tradeAuth
+    const clientName = activeIsAdmin ? 'admin' : 'trade'
+    try {
+      sessionStorage.setItem('tvs-email-identity-client', clientName)
+      localStorage.setItem('tvs-email-identity-client', clientName)
+    } catch {
+      try { sessionStorage.removeItem('tvs-email-identity-client'); localStorage.removeItem('tvs-email-identity-client') } catch { /* ignore storage cleanup failures */ }
+      setNotice('Your browser blocked site storage. Allow storage for this site, then try again.')
+      return
+    }
+    setBusy('email')
+    setNotice('')
+    try {
+      const { error } = await client.auth.updateUser(
+        { email: recoveryEmail.trim(), password: recoveryPassword },
+        { emailRedirectTo: EMAIL_PRODUCTION_CALLBACK },
+      )
+      if (error) {
+        try { sessionStorage.removeItem('tvs-email-identity-client'); localStorage.removeItem('tvs-email-identity-client') } catch { /* ignore storage cleanup failures */ }
+        setNotice(`Could not add email login: ${errorMessage(error)}`)
+      } else {
+        setEmailFormOpen(false)
+        setRecoveryPassword('')
+        setRecoveryPasswordConfirm('')
+        setNotice('Confirmation sent. Open the email link in this same browser. Then you can disconnect Roblox here.')
+      }
+    } catch (error) {
+      try { sessionStorage.removeItem('tvs-email-identity-client'); localStorage.removeItem('tvs-email-identity-client') } catch { /* ignore storage cleanup failures */ }
+      setNotice(`Could not add email login: ${errorMessage(error)}`)
+    } finally { setBusy(null) }
+  }
+
   async function signOut() {
     const client = activeIsAdmin ? supabase : tradeAuth
     if (!client) return
@@ -219,6 +302,16 @@ export function NavIdentityMenu() {
         const unlinking = busy === `unlink:${provider.id}`
         return <div className="identity-provider-row" key={provider.id}><span className={`identity-provider-mark ${provider.icon}`}><ProviderLogo type={provider.icon} /></span><span><b>{provider.name}</b><small>{isLinked ? 'Connected and verified' : 'Not connected'}</small></span>{isLinked ? <div className="identity-provider-actions"><i className="identity-connected-dot" />{identities.length > 1 ? <button className="identity-disconnect-button" type="button" onClick={() => void disconnect(provider)} disabled={Boolean(busy)} title={`Disconnect ${provider.name}`}><Unlink size={12} />{unlinking ? 'Disconnecting…' : 'Disconnect'}</button> : <small className="identity-unlink-hint" title="Add another sign-in method first">Add another login first</small>}</div> : <button type="button" onClick={() => void connect(provider)} disabled={Boolean(busy)}>{busy === provider.id ? 'Connecting…' : sessionId ? 'Link' : 'Connect'}</button>}</div>
       })}</div>
+      {sessionId && linked.has('custom:roblox') && !linked.has('email') && <div className="identity-email-recovery">
+        {emailFormOpen ? <form onSubmit={event => void addEmailLogin(event)}>
+          <b>Add an email login</b>
+          <small>Use an email you control that is not already used by another Turbo Soccer account.</small>
+          <label>Email address<input type="email" value={recoveryEmail} onChange={event => setRecoveryEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>Password<input type="password" value={recoveryPassword} onChange={event => setRecoveryPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
+          <label>Confirm password<input type="password" value={recoveryPasswordConfirm} onChange={event => setRecoveryPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
+          <div><button type="button" className="identity-email-cancel" onClick={() => { setEmailFormOpen(false); setNotice('') }} disabled={Boolean(busy)}>Cancel</button><button type="submit" disabled={Boolean(busy)}>{busy === 'email' ? 'Sending…' : 'Send confirmation'}</button></div>
+        </form> : <button type="button" className="identity-email-open" onClick={() => { setNotice(''); setEmailFormOpen(true) }} disabled={Boolean(busy)}>Use email instead</button>}
+      </div>}
       {notice && <p className="identity-notice" role="status">{notice}</p>}{sessionId && <div className="identity-account-actions"><button className="identity-signout" type="button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button><button className="identity-signout" type="button" onClick={() => void revokeSessions()}><ShieldCheck size={14} /> Sign out all devices</button></div>}
     </section></>}
   </div>

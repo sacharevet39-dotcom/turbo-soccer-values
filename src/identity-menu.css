@@ -34,3 +34,91 @@
   font-size: 9px;
   white-space: nowrap;
 }
+
+.identity-email-recovery {
+  margin-top: 11px;
+  padding: 10px;
+  border: 1px solid #414141;
+  border-radius: 9px;
+  background: #242424;
+}
+
+.identity-email-open,
+.identity-email-recovery form > div > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #505050;
+  border-radius: 7px;
+  background: #303030;
+  color: #f0f0f0;
+  font: 700 10px var(--body);
+  cursor: pointer;
+}
+
+.identity-email-open:hover,
+.identity-email-recovery form > div > button:hover:not(:disabled) {
+  background: #3a3a3a;
+}
+
+.identity-email-recovery form {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-email-recovery form > b {
+  font-size: 11px;
+}
+
+.identity-email-recovery form > small {
+  color: #aaa;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.identity-email-recovery label {
+  display: grid;
+  gap: 4px;
+  color: #bbb;
+  font-size: 9px;
+}
+
+.identity-email-recovery input {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid #494949;
+  border-radius: 6px;
+  outline: none;
+  background: #191919;
+  color: #eee;
+  font: 500 11px var(--body);
+}
+
+.identity-email-recovery input:focus {
+  border-color: #879d4f;
+}
+
+.identity-email-recovery form > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.identity-email-recovery form > div > button:last-child {
+  border-color: #758d3e;
+  background: #303a22;
+  color: #d8f18e;
+}
+
+.identity-email-recovery form > div > button.identity-email-cancel {
+  background: transparent;
+  color: #aaa;
+}
+
+.identity-email-recovery button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
