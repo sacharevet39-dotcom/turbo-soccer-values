@@ -474,7 +474,7 @@
   .trade-listing-items.offer { grid-column: 2; grid-row: 1; }
   .trade-listing-swap { grid-column: 3; grid-row: 1; }
   .trade-listing-items.want { grid-column: 4; grid-row: 1; }
-  .trade-listing-actions { grid-column: 2 / -1; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trade-listing-actions { grid-column: 2 / -1; grid-row: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .trade-action-button { min-height: 48px; font-size: 14px; }
   .trade-listing-card.profile-open .trade-listing-items,
   .trade-listing-card.profile-open .trade-listing-swap { grid-row: 1; }
@@ -485,8 +485,102 @@
   .trade-listing-card { grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); }
   .trade-listing-items { min-height: 170px; }
   .trade-listing-item-row { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
-  .trade-listing-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trade-listing-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .trade-action-button { min-height: 46px; padding-inline: 7px; gap: 6px; font-size: 12px; }
+}
+
+/* Roblox-only player chat */
+.trade-hub-sections { display: flex; gap: 10px; padding: 7px; margin: 0 0 22px; border: 1px solid #7841a1; border-radius: 17px; background: linear-gradient(120deg, #2e084e, #22073d); box-shadow: inset 0 1px #ffffff10, 0 4px 0 #19032e; }
+.trade-hub-sections > button { min-height: 54px; display: inline-flex; align-items: center; gap: 10px; padding: 0 21px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #d5bbe9; font: 900 16px 'Nunito', 'DM Sans', sans-serif; cursor: pointer; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.trade-hub-sections > button:hover { transform: translateY(-1px); color: #fff; }
+.trade-hub-sections > button.active { border-color: #b267e5; background: linear-gradient(145deg, #7e2ab7, #541182); color: #fff; box-shadow: 0 3px 0 #31075b; }
+.trade-hub-sections > button > span:not(.trade-roblox-only) { min-width: 24px; padding: 2px 7px; border-radius: 999px; background: #2d0949; color: #dfc1f7; font-size: 12px; text-align: center; }
+.trade-roblox-only { padding: 4px 7px; border: 1px solid #56d9bb; border-radius: 999px; background: #12463e; color: #9fffe0; font: 900 9px 'Nunito', 'DM Sans', sans-serif; letter-spacing: .06em; }
+.trade-chat-panel { position: relative; display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); min-height: min(700px, 72vh); overflow: hidden; border: 2px solid #8244b1; border-radius: 22px; background: radial-gradient(ellipse at 82% 0%, #5b1b8a55, transparent 46%), linear-gradient(130deg, #25063c, #1d082f 70%, #270640); box-shadow: 0 8px 0 #160225, 0 18px 40px #10021c88; font-family: 'Nunito', 'DM Sans', sans-serif; }
+.trade-chat-inbox { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #60367b; background: linear-gradient(180deg, #32104e, #25093d 65%, #200633); }
+.trade-chat-inbox > header { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 17px 19px; border-bottom: 1px solid #60367b; }
+.trade-chat-inbox > header .section-eyebrow { color: #d5ff55; font-size: 10px; }
+.trade-chat-inbox > header h2 { margin: 3px 0 0; color: #fff; font-size: 23px; font-weight: 1000; }
+.trade-chat-inbox-count { min-width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #b067e1; border-radius: 12px; background: #54207a; color: #f4dcff; font-weight: 1000; }
+.trade-chat-thread-list { display: grid; align-content: start; gap: 5px; overflow-y: auto; padding: 9px; }
+.trade-chat-thread { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid transparent; border-radius: 15px; background: transparent; color: #f6eaff; text-align: left; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.trade-chat-thread:hover { border-color: #76409a; background: #45136b; }
+.trade-chat-thread.active { border-color: #b665e9; background: linear-gradient(120deg, #66218f, #411166); box-shadow: inset 3px 0 #d8ff51; }
+.trade-chat-avatar { width: 48px; height: 48px; flex: none; display: grid; place-items: center; overflow: hidden; border: 2px solid #c77df0; border-radius: 50%; background: linear-gradient(145deg, #6c2991, #34104f); color: #efccff; box-shadow: 0 3px 0 #1b052d; }
+.trade-chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.trade-chat-avatar.large { width: 56px; height: 56px; }
+.trade-chat-thread-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.trade-chat-thread-copy b { overflow: hidden; color: #fff; font-size: 15px; font-weight: 1000; text-overflow: ellipsis; white-space: nowrap; }
+.trade-chat-thread-copy small { overflow: hidden; color: #c8a9de; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.trade-chat-thread-copy time { color: #a486b7; font-size: 10px; }
+.trade-chat-inbox-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 24px; color: #c8a9de; text-align: center; }
+.trade-chat-inbox-empty > svg { color: #d5ff55; }
+.trade-chat-inbox-empty b { color: #fff; font-size: 17px; }
+.trade-chat-inbox-empty span { max-width: 220px; font-size: 12px; line-height: 1.5; }
+.trade-chat-conversation { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.trade-chat-header { min-height: 88px; display: flex; align-items: center; gap: 13px; padding: 15px clamp(14px, 2vw, 26px); border-bottom: 1px solid #583273; background: #35104f99; }
+.trade-chat-header > div { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.trade-chat-header > div b { overflow: hidden; color: #fff; font-size: 18px; font-weight: 1000; text-overflow: ellipsis; white-space: nowrap; }
+.trade-chat-header > div small { color: #cfb5e2; font-size: 12px; }
+.trade-chat-header > a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid #8350a6; border-radius: 12px; background: #451469; color: #f0ddff; font-size: 12px; font-weight: 900; }
+.trade-chat-context { display: flex; align-items: center; gap: 7px; margin: 15px 20px 0; padding: 9px 12px; border: 1px solid #5f3b79; border-radius: 12px; background: #30094c; color: #d9c2eb; font-size: 12px; font-weight: 800; }
+.trade-chat-context svg { color: #d5ff55; }
+.trade-chat-messages { min-height: 220px; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; overflow-y: auto; padding: 18px clamp(14px, 2vw, 26px); }
+.trade-chat-message { max-width: min(78%, 650px); display: grid; gap: 4px; padding: 11px 15px 8px; border: 1px solid #8150a3; border-radius: 17px 17px 17px 5px; background: linear-gradient(145deg, #54217a, #3c125c); color: #fff; box-shadow: 0 4px 0 #1e0633; }
+.trade-chat-message.mine { align-self: flex-end; border-color: #a8db47; border-radius: 17px 17px 5px 17px; background: linear-gradient(145deg, #d7ff59, #a8e34a); color: #291344; }
+.trade-chat-message p { margin: 0; font-size: 14px; font-weight: 750; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+.trade-chat-message time { justify-self: end; color: #dfc6f2; font-size: 10px; }
+.trade-chat-message.mine time { color: #4d6927; }
+.trade-chat-message-empty { flex: 1; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #c9acdf; text-align: center; }
+.trade-chat-message-empty > svg { color: #d5ff55; }
+.trade-chat-message-empty b { color: #fff; font-size: 17px; }
+.trade-chat-message-empty span { max-width: 340px; font-size: 13px; line-height: 1.5; }
+.trade-chat-compose { min-height: 72px; display: flex; align-items: center; gap: 11px; padding: 11px 15px; margin: 0 15px 15px; border: 2px solid #8252a4; border-radius: 17px; background: #220837; box-shadow: inset 0 2px 8px #10021b88; }
+.trade-chat-compose textarea { width: 100%; min-width: 0; max-height: 120px; resize: vertical; border: 0; outline: 0; background: transparent; color: #fff; font: 700 15px/1.4 'Nunito', 'DM Sans', sans-serif; }
+.trade-chat-compose textarea::placeholder { color: #b39ac4; }
+.trade-chat-compose > span { flex: none; color: #a98cba; font-size: 10px; }
+.trade-chat-compose > button { width: 48px; height: 48px; flex: none; display: grid; place-items: center; border: 1px solid #e1ff75; border-radius: 15px; background: linear-gradient(145deg, #d9ff58, #a7df40); color: #2c1145; box-shadow: 0 4px 0 #4b7425; cursor: pointer; }
+.trade-chat-compose > button:disabled { opacity: .45; cursor: not-allowed; }
+.trade-chat-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; padding: 30px; color: #d7c1e8; text-align: center; }
+.trade-chat-welcome h2 { margin: 0; color: #fff; font-size: 27px; font-weight: 1000; }
+.trade-chat-welcome p { max-width: 440px; margin: 0; font-size: 14px; line-height: 1.55; }
+.trade-chat-welcome > span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid #527e3a; border-radius: 999px; background: #203719; color: #ddffae; font-size: 12px; font-weight: 800; }
+.trade-chat-gate { min-height: 470px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 34px; border: 2px solid #8244b1; border-radius: 22px; background: radial-gradient(ellipse at 50% 5%, #5d218555, transparent 50%), linear-gradient(135deg, #2d0a48, #210737); color: #d8c0e8; text-align: center; box-shadow: 0 7px 0 #170227; }
+.trade-chat-gate-icon { width: 76px; height: 76px; display: grid; place-items: center; border: 2px solid #b76de4; border-radius: 24px; background: linear-gradient(145deg, #7429a5, #401061); color: #d8ff54; box-shadow: 0 6px 0 #23043b, 0 12px 25px #0e021a88; transform: rotate(-3deg); }
+.trade-chat-gate .section-eyebrow { margin-top: 4px; color: #d7ff54; }
+.trade-chat-gate h2 { margin: 0; color: #fff; font-size: 32px; font-weight: 1000; }
+.trade-chat-gate p { max-width: 540px; margin: 0; font-size: 15px; font-weight: 700; line-height: 1.6; }
+.trade-chat-error { position: absolute; z-index: 1; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 28px); padding: 10px 13px; border: 1px solid #ee7b8b; border-radius: 12px; background: #57152f; color: #ffe6ed; font-size: 12px; font-weight: 800; box-shadow: 0 4px 0 #2a0618; }
+.trade-chat-error button { display: grid; place-items: center; padding: 2px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.trade-action-button.communicate { border-color: #9fd4ff; background: linear-gradient(145deg, #4b8de2, #4e55bb); }
+.trade-action-button.make-offer { border-color: #ffaff0; background: linear-gradient(145deg, #e455c8, #a329d0); }
+@media (max-width: 850px) { .trade-chat-panel { grid-template-columns: minmax(220px, 36%) minmax(0, 1fr); min-height: min(650px, 75vh); } }
+@media (max-width: 600px) {
+  .trade-hub-sections { gap: 5px; padding: 5px; border-radius: 14px; }
+  .trade-hub-sections > button { min-height: 46px; flex: 1; justify-content: center; gap: 6px; padding-inline: 7px; font-size: 13px; }
+  .trade-hub-sections > button svg { width: 16px; height: 16px; }
+  .trade-roblox-only { padding: 3px 5px; font-size: 7px; }
+  .trade-chat-panel { grid-template-columns: minmax(0, 1fr); min-height: min(760px, 78vh); }
+  .trade-chat-inbox { min-height: 190px; max-height: 245px; border-right: 0; border-bottom: 1px solid #60367b; }
+  .trade-chat-inbox > header { min-height: 68px; padding: 10px 14px; }
+  .trade-chat-thread-list { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-x: auto; }
+  .trade-chat-thread { gap: 7px; padding: 8px; }
+  .trade-chat-avatar { width: 38px; height: 38px; }
+  .trade-chat-thread-copy b { font-size: 12px; }
+  .trade-chat-thread-copy small { font-size: 9px; }
+  .trade-chat-thread-copy time { font-size: 8px; }
+  .trade-chat-header { min-height: 66px; padding: 8px 11px; }
+  .trade-chat-avatar.large { width: 42px; height: 42px; }
+  .trade-chat-header > a { padding: 8px; font-size: 0; }
+  .trade-chat-header > a svg { width: 18px; height: 18px; }
+  .trade-chat-context { margin: 9px 9px 0; font-size: 11px; }
+  .trade-chat-messages { min-height: 185px; padding: 12px 10px; }
+  .trade-chat-message { max-width: 90%; }
+  .trade-chat-compose { min-height: 60px; gap: 6px; padding: 7px; margin: 0 8px 8px; }
+  .trade-chat-compose textarea { font-size: 13px; }
+  .trade-chat-compose > span { font-size: 8px; }
+  .trade-chat-compose > button { width: 42px; height: 42px; }
+  .trade-chat-welcome { padding: 19px; }
 }
 @media (max-width: 600px) {
   .trade-listing-item-row { grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 7px; }
