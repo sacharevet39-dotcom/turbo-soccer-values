@@ -8,7 +8,8 @@
   flex: none;
 }
 
-.identity-provider-row > button.identity-disconnect-button {
+.identity-provider-actions > button.identity-disconnect-button {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -16,9 +17,10 @@
   border-color: #5c4545;
   background: #2a2424;
   color: #e3caca;
+  box-shadow: none;
 }
 
-.identity-provider-row > button.identity-disconnect-button:hover:not(:disabled) {
+.identity-provider-actions > button.identity-disconnect-button:hover:not(:disabled) {
   border-color: #8a5555;
   background: #352626;
   color: #fff;

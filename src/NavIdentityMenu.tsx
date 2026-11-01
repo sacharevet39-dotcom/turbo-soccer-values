@@ -213,7 +213,9 @@ export function NavIdentityMenu() {
     const identity = identities.find(candidate => candidate.provider === provider.id)
     if (!identity) { setNotice(`${provider.name} is not connected to this account.`); return }
     if (identities.length < 2) {
-      setNotice(`Connect another sign-in method to this account before disconnecting ${provider.name}.`)
+      setNotice(provider.id === 'custom:roblox'
+        ? 'Roblox is this account’s only sign-in. Add and confirm an email login first, then you can disconnect Roblox.'
+        : `Add another sign-in method before disconnecting ${provider.name}.`)
       return
     }
     if (!window.confirm(`Disconnect ${provider.name} from this Turbo Soccer account? You can then connect it to a different account.`)) return
@@ -300,12 +302,12 @@ export function NavIdentityMenu() {
       <div className="identity-provider-list">{providers.map(provider => {
         const isLinked = linked.has(provider.id)
         const unlinking = busy === `unlink:${provider.id}`
-        return <div className="identity-provider-row" key={provider.id}><span className={`identity-provider-mark ${provider.icon}`}><ProviderLogo type={provider.icon} /></span><span><b>{provider.name}</b><small>{isLinked ? 'Connected and verified' : 'Not connected'}</small></span>{isLinked ? <div className="identity-provider-actions"><i className="identity-connected-dot" />{identities.length > 1 ? <button className="identity-disconnect-button" type="button" onClick={() => void disconnect(provider)} disabled={Boolean(busy)} title={`Disconnect ${provider.name}`}><Unlink size={12} />{unlinking ? 'Disconnecting…' : 'Disconnect'}</button> : <small className="identity-unlink-hint" title="Add another sign-in method first">Add another login first</small>}</div> : <button type="button" onClick={() => void connect(provider)} disabled={Boolean(busy)}>{busy === provider.id ? 'Connecting…' : sessionId ? 'Link' : 'Connect'}</button>}</div>
+        return <div className="identity-provider-row" key={provider.id}><span className={`identity-provider-mark ${provider.icon}`}><ProviderLogo type={provider.icon} /></span><span><b>{provider.name}</b><small>{isLinked ? 'Connected and verified' : 'Not connected'}</small></span>{isLinked ? <div className="identity-provider-actions"><i className="identity-connected-dot" />{identities.length > 1 ? <button className="identity-disconnect-button" type="button" onClick={() => void disconnect(provider)} disabled={Boolean(busy)} title={`Disconnect ${provider.name}`}><Unlink size={12} />{unlinking ? 'Disconnecting…' : 'Disconnect'}</button> : <small className="identity-unlink-hint" title="Add and confirm an email login first">{provider.id === 'custom:roblox' ? 'Email login required' : 'Add another login first'}</small>}</div> : <button type="button" onClick={() => void connect(provider)} disabled={Boolean(busy)}>{busy === provider.id ? 'Connecting…' : sessionId ? 'Link' : 'Connect'}</button>}</div>
       })}</div>
       {sessionId && linked.has('custom:roblox') && !linked.has('email') && <div className="identity-email-recovery">
         {emailFormOpen ? <form onSubmit={event => void addEmailLogin(event)}>
           <b>Add an email login</b>
-          <small>Use an email you control that is not already used by another Turbo Soccer account.</small>
+          <small>This is needed only when Roblox is this account’s only sign-in. Use an email you control that is not already used by another Turbo Soccer account.</small>
           <label>Email address<input type="email" value={recoveryEmail} onChange={event => setRecoveryEmail(event.target.value)} autoComplete="email" required /></label>
           <label>Password<input type="password" value={recoveryPassword} onChange={event => setRecoveryPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
           <label>Confirm password<input type="password" value={recoveryPasswordConfirm} onChange={event => setRecoveryPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
