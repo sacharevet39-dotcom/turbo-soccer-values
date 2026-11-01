@@ -11,6 +11,28 @@ const providers: Array<{ id: Provider; name: string; icon: 'roblox' | 'discord';
 ]
 const ROBLOX_PRODUCTION_CALLBACK = 'https://turbo-soccer-values.pages.dev/?tab=trades&roblox_auth=complete'
 
+function hasOAuthVerifier(client: 'admin' | 'trade') {
+  try {
+    const projectRef = new URL(import.meta.env.VITE_SUPABASE_URL as string).hostname.split('.')[0]
+    const storageKey = client === 'admin' ? `sb-${projectRef}-auth-token` : 'tvs-trade-auth'
+    const prefix = `${storageKey}-flow-`
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      for (let index = 0; index < storage.length; index++) {
+        const key = storage.key(index)
+        if (key?.startsWith(prefix) && key.endsWith('-code-verifier') && storage.getItem(key)) return true
+      }
+    }
+  } catch { /* Storage may be disabled; keep the explicit flow marker as a fallback. */ }
+  return false
+}
+
+function identityConnectionError(provider: string, error: unknown) {
+  const message = errorMessage(error)
+  if (/manual.{0,24}link|link.{0,24}disabled/i.test(message)) return 'Supabase has manual account linking disabled. Enable identity linking in Authentication settings, then try again.'
+  if (/identity.{0,32}(already|exists|linked)|already.{0,32}(identity|linked)/i.test(message)) return `This ${provider} account is already linked to another Turbo Soccer login. Sign in to that account to use it here.`
+  return message
+}
+
 function ProviderLogo({ type }: { type: 'roblox' | 'discord' }) {
   return type === 'roblox'
     ? <svg viewBox="0 0 24 24" aria-hidden="true" className="identity-logo roblox-logo"><path d="M5.1 2.8 21.2 7.1a1.2 1.2 0 0 1 .85 1.47l-4.3 16.1a1.2 1.2 0 0 1-1.47.85L.2 21.2a1.2 1.2 0 0 1-.85-1.47l4.3-16.1A1.2 1.2 0 0 1 5.1 2.8Zm4.35 7.05-1.8 6.73 6.73 1.8 1.8-6.73-6.73-1.8Z" transform="translate(1 -2) scale(.92)" /></svg>
@@ -60,19 +82,39 @@ export function NavIdentityMenu() {
       const url = new URL(window.location.href)
       const code = url.searchParams.get('code')
       let oauthClient: 'admin' | 'trade' | null = null
-      try { oauthClient = sessionStorage.getItem('tvs-oauth-client') as 'admin' | 'trade' | null } catch { /* session storage may be disabled */ }
+      let oauthProvider: string | null = null
+      try {
+        const marker = sessionStorage.getItem('tvs-oauth-client') || localStorage.getItem('tvs-oauth-client')
+        if (marker === 'admin' || marker === 'trade') oauthClient = marker
+        oauthProvider = sessionStorage.getItem('tvs-oauth-provider') || localStorage.getItem('tvs-oauth-provider')
+      } catch { /* The PKCE slot below can identify the initiating client. */ }
+      const adminVerifier = hasOAuthVerifier('admin')
+      const tradeVerifier = hasOAuthVerifier('trade')
+      if (adminVerifier !== tradeVerifier) oauthClient = adminVerifier ? 'admin' : 'trade'
       const isAdminReturn = oauthClient === 'admin' || url.searchParams.get('admin_identity') === 'complete'
       const isTradeReturn = oauthClient === 'trade' || url.searchParams.get('trade_auth') === 'complete' || url.searchParams.get('roblox_auth') === 'complete'
       const providerError = url.searchParams.get('error_description') || url.searchParams.get('error') || url.searchParams.get('error_code')
       if (providerError) setNotice(`Connection failed: ${providerError.slice(0, 180)}`)
       if (code && (isAdminReturn || isTradeReturn)) {
         const client = isAdminReturn ? supabase : tradeAuth
-        const { error } = await client!.auth.exchangeCodeForSession(code)
-        if (error) setNotice(`Could not finish account connection: ${errorMessage(error)}`)
-        else setNotice(isAdminReturn ? 'Roblox account linked to the admin profile.' : 'Account connected successfully.')
+        const flowId = url.searchParams.get('flow_id')
+        const hasVerifier = oauthClient ? hasOAuthVerifier(oauthClient) : false
+        if (!client || !oauthClient || !hasVerifier) {
+          setNotice(isAdminReturn ? 'Roblox returned to the admin profile, but its sign-in check was missing. Please restart Connect Roblox from this browser tab.' : 'Roblox returned, but the sign-in check was missing. Please restart Connect Roblox from this browser tab.')
+        } else {
+          const { error } = await client.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined)
+          if (error) setNotice(`Could not finish account connection: ${errorMessage(error)}`)
+          else {
+            const { data: identityData, error: identityError } = await client.auth.getUserIdentities()
+            const expectedProvider = oauthProvider || (url.searchParams.get('roblox_auth') === 'complete' ? 'custom:roblox' : null)
+            if (identityError || (expectedProvider && !identityData?.identities.some(identity => identity.provider === expectedProvider))) {
+              setNotice(expectedProvider === 'custom:roblox' ? 'Roblox authorization finished, but the account was not linked. Check that Roblox is not already linked to another Turbo Soccer account, then try again.' : 'Authorization finished, but the account was not linked. Try again from the connected accounts menu.')
+            } else setNotice(expectedProvider === 'custom:roblox' && isAdminReturn ? 'Roblox account linked to the admin profile.' : 'Account connected successfully.')
+          }
+        }
       }
       if (code || isAdminReturn || isTradeReturn || providerError || url.hash) {
-        try { sessionStorage.removeItem('tvs-oauth-client') } catch { /* session storage may be disabled */ }
+        try { sessionStorage.removeItem('tvs-oauth-client'); localStorage.removeItem('tvs-oauth-client'); sessionStorage.removeItem('tvs-oauth-provider'); localStorage.removeItem('tvs-oauth-provider') } catch { /* session storage may be disabled */ }
         for (const key of ['code', 'flow_id', 'sb_flow_id', 'admin_identity', 'trade_auth', 'roblox_auth', 'error', 'error_description', 'error_code']) url.searchParams.delete(key)
         url.hash = ''
         window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
@@ -94,25 +136,28 @@ export function NavIdentityMenu() {
     // Keep Supabase's redirect target on the single production URL allowlisted
     // in Auth settings; the initiating client is remembered per browser tab.
     const callback = provider.id === 'custom:roblox' ? ROBLOX_PRODUCTION_CALLBACK : `${window.location.origin}/`
-    try {
-      // Fail closed if we cannot remember which isolated Supabase client started
-      // OAuth; the PKCE verifier belongs to that same client's persistent store.
-      sessionStorage.setItem('tvs-oauth-client', activeIsAdmin ? 'admin' : 'trade')
-    } catch {
-      setNotice('Your browser blocked session storage. Allow site storage, then try connecting again.')
+    let markerStored = false
+    try { sessionStorage.setItem('tvs-oauth-client', activeIsAdmin ? 'admin' : 'trade'); sessionStorage.setItem('tvs-oauth-provider', provider.id); markerStored = true } catch { /* Local storage or PKCE persistence may still be available. */ }
+    try { localStorage.setItem('tvs-oauth-client', activeIsAdmin ? 'admin' : 'trade'); localStorage.setItem('tvs-oauth-provider', provider.id); markerStored = true } catch { /* The session marker may still be available. */ }
+    if (!markerStored) {
+      setNotice('Your browser blocked site storage. Allow storage for this site, then try connecting again.')
       setBusy(null)
       return
     }
     const options = { redirectTo: callback, scopes: provider.scopes }
-    const result = sessionId
-      ? await client.auth.linkIdentity({ provider: provider.id, options })
-      : await client.auth.signInWithOAuth({ provider: provider.id, options })
-    if (result.error) {
-      try { sessionStorage.removeItem('tvs-oauth-client') } catch { /* ignore storage cleanup failures */ }
-      setNotice(errorMessage(result.error))
-    }
-    else if (result.data?.url) window.location.assign(result.data.url)
-    setBusy(null)
+    try {
+      const result = sessionId
+        ? await client.auth.linkIdentity({ provider: provider.id, options })
+        : await client.auth.signInWithOAuth({ provider: provider.id, options })
+      if (result.error) {
+        try { sessionStorage.removeItem('tvs-oauth-client'); localStorage.removeItem('tvs-oauth-client'); sessionStorage.removeItem('tvs-oauth-provider'); localStorage.removeItem('tvs-oauth-provider') } catch { /* ignore storage cleanup failures */ }
+        setNotice(identityConnectionError(provider.name, result.error))
+      } else if (result.data?.url) window.location.assign(result.data.url)
+      else setNotice(`Could not start ${provider.name} authorization. Please try again.`)
+    } catch (error) {
+      try { sessionStorage.removeItem('tvs-oauth-client'); localStorage.removeItem('tvs-oauth-client'); sessionStorage.removeItem('tvs-oauth-provider'); localStorage.removeItem('tvs-oauth-provider') } catch { /* ignore storage cleanup failures */ }
+      setNotice(`Could not start ${provider.name} authorization: ${identityConnectionError(provider.name, error)}`)
+    } finally { setBusy(null) }
   }
 
   async function signOut() {

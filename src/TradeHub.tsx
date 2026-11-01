@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { SupabaseClient, UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gamepad2, Gem, Handshake, LoaderCircle, MessageCircle, MessagesSquare, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gem, Handshake, LoaderCircle, MessageCircle, MessagesSquare, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
 import { tradeChatContentError } from './lib/trade-chat-safety'
+import { resolveActiveTradeClient } from './lib/trade-session'
 
 type TradeLine = { id: string; quantity: number }
 type TradeCurrency = { coins: number; gems: number }
@@ -67,6 +68,7 @@ export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; vie
   const [identities, setIdentities] = useState<UserIdentity[]>([])
   const [adminMode, setAdminMode] = useState(false)
   const [listings, setListings] = useState<TradeListing[]>([])
+  const [acceptedListingIds, setAcceptedListingIds] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState('')
@@ -74,18 +76,17 @@ export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; vie
   const [counterListing, setCounterListing] = useState<TradeListing | null>(null)
   const [activeChatThreadId, setActiveChatThreadId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [acceptingListingId, setAcceptingListingId] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
 
   const refreshIdentities = useCallback(async () => {
     if (!tradeAuth || !supabase) return
-    const { data: mainSession } = await supabase.auth.getSession()
-    const { data: adminData } = mainSession.session ? await supabase.rpc('is_turbo_admin') : { data: false }
-    const isAdmin = adminData === true
+    const context = await resolveActiveTradeClient()
+    const isAdmin = context?.admin === true
     setAdminMode(isAdmin)
-    const client = isAdmin ? supabase : tradeAuth
-    const { data: sessionData } = await client.auth.getSession()
-    const userId = sessionData.session?.user.id ?? null
+    const client = context?.client ?? tradeAuth
+    const userId = context?.userId ?? null
     setSessionUserId(userId)
     if (!userId) { setIdentities([]); return }
     const { data } = await client.auth.getUserIdentities()
@@ -124,6 +125,18 @@ export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; vie
     return () => { tradeEvents.subscription.unsubscribe(); adminEvents.subscription.unsubscribe(); window.clearInterval(timer) }
   }, [loadListings, refreshIdentities])
 
+  useEffect(() => {
+    if (!sessionUserId || !listings.length) { setAcceptedListingIds(new Set()); return }
+    const client = adminMode ? supabase : tradeAuth
+    const ids = listings.filter(listing => listing.user_id !== sessionUserId).map(listing => listing.id)
+    if (!client || !ids.length) { setAcceptedListingIds(new Set()); return }
+    let active = true
+    void client.from('trade_offer_acceptances').select('listing_id').eq('accepter_id', sessionUserId).in('listing_id', ids).then(({ data }) => {
+      if (active) setAcceptedListingIds(new Set((data ?? []).map(row => row.listing_id)))
+    })
+    return () => { active = false }
+  }, [adminMode, listings, sessionUserId])
+
   const filteredListings = useMemo(() => listings.filter(listing => {
     const categoryMatch = filter === 'all' || listing.trade_listing_items.some(line => line.item.category === filter)
     const currencyTerms = [listing.offer_coins, listing.want_coins].some(value => value > 0) ? 'coins' : ''
@@ -159,6 +172,22 @@ export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; vie
     else { setListings(current => current.filter(entry => entry.id !== listing.id)); setNotice('Trade listing closed.') }
   }
 
+  async function acceptListing(listing: TradeListing) {
+    if (!sessionUserId || !hasTradeIdentity) { setNotice('Connect your Roblox or Discord account to accept an offer.'); return }
+    if (acceptedListingIds.has(listing.id) || acceptingListingId) return
+    const client = adminMode ? supabase : tradeAuth
+    if (!client) return
+    setAcceptingListingId(listing.id); setNotice('')
+    const { error } = await client.rpc('accept_trade_offer', { p_listing_id: listing.id })
+    if (error) setNotice(errorMessage(error))
+    else {
+      setAcceptedListingIds(current => new Set(current).add(listing.id))
+      setNotice('Offer accepted. Both players have a notification. Use Chat to arrange the Turbo Soccer trade.')
+      window.dispatchEvent(new Event('tvs:notifications-updated'))
+    }
+    setAcceptingListingId(null)
+  }
+
   async function openListingChat(listing: TradeListing) {
     if (listing.identity_provider !== 'custom:roblox') return
     const client = adminMode ? supabase : tradeAuth
@@ -188,7 +217,7 @@ export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; vie
 
     <div className="trade-listings-heading"><div><span className="eyebrow section-eyebrow">COMMUNITY MARKET</span><h2>Open trade offers</h2></div><span className="trade-open-count"><i />{filteredListings.length} active</span></div>
     {loadError && <div className="inline-error" role="alert">Could not load the trade board: {loadError}</div>}
-    {loading ? <div className="trade-listings-loading"><LoaderCircle className="spin" size={20} /> Loading offers…</div> : filteredListings.length ? <div className="trade-listings">{filteredListings.map(listing => <TradeListingCard key={listing.id} listing={listing} own={listing.user_id === sessionUserId} onClose={() => void closeListing(listing)} onOpenChat={() => void openListingChat(listing)} onMakeOffer={() => { if (!hasTradeIdentity) { setNotice('Connect your Roblox or Discord account to make an offer.'); return }; setCounterListing(listing); setShowComposer(true) }} />)}</div> : <div className="trade-listings-empty"><div className="trade-empty-icon"><ArrowLeftRight size={22} /></div><b>{listings.length ? 'No listings match those filters' : 'No open offers yet'}</b><p>Connect your Roblox or Discord account and post the first trade.</p></div>}
+    {loading ? <div className="trade-listings-loading"><LoaderCircle className="spin" size={20} /> Loading offers…</div> : filteredListings.length ? <div className="trade-listings">{filteredListings.map(listing => <TradeListingCard key={listing.id} listing={listing} own={listing.user_id === sessionUserId} accepted={acceptedListingIds.has(listing.id)} accepting={acceptingListingId === listing.id} onAccept={() => void acceptListing(listing)} onClose={() => void closeListing(listing)} onOpenChat={() => void openListingChat(listing)} onMakeOffer={() => { if (!hasTradeIdentity) { setNotice('Connect your Roblox or Discord account to make an offer.'); return }; setCounterListing(listing); setShowComposer(true) }} />)}</div> : <div className="trade-listings-empty"><div className="trade-empty-icon"><ArrowLeftRight size={22} /></div><b>{listings.length ? 'No listings match those filters' : 'No open offers yet'}</b><p>Connect your Roblox or Discord account and post the first trade.</p></div>}
 
     <section className="trade-publish-callout"><div><span className="trade-callout-icon"><Plus size={19} /></span><div><b>Looking for a specific item?</b><p>Publish what you offer and what you want. Your verified profile appears on the listing.</p></div></div><button type="button" className="trade-publish-button" disabled={!hasTradeIdentity} onClick={() => setShowComposer(true)}><Plus size={16} /> Create a listing</button>{!hasTradeIdentity && <small>Connect Roblox or Discord to publish.</small>}</section>
 
@@ -284,7 +313,7 @@ function TradeChatPanel({ client, userId, hasRoblox, initialThreadId }: { client
   </section>
 }
 
-function TradeListingCard({ listing, own, onClose, onOpenChat, onMakeOffer }: { listing: TradeListing; own: boolean; onClose: () => void; onOpenChat: () => void; onMakeOffer: () => void }) {
+function TradeListingCard({ listing, own, accepted, accepting, onAccept, onClose, onOpenChat, onMakeOffer }: { listing: TradeListing; own: boolean; accepted: boolean; accepting: boolean; onAccept: () => void; onClose: () => void; onOpenChat: () => void; onMakeOffer: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const offer = listing.trade_listing_items.filter(line => line.side === 'offer')
   const want = listing.trade_listing_items.filter(line => line.side === 'want')
@@ -294,7 +323,7 @@ function TradeListingCard({ listing, own, onClose, onOpenChat, onMakeOffer }: { 
     <TradeListingItems title="OFFERING" tone="offer" lines={offer} currencies={{ coins: listing.offer_coins, gems: listing.offer_gems }} />
     <span className="trade-listing-swap"><ArrowLeftRight size={19} /></span>
     <TradeListingItems title="LOOKING FOR" tone="want" lines={want} currencies={{ coins: listing.want_coins, gems: listing.want_gems }} />
-    <div className="trade-listing-actions">{own ? <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={16} /> Close offer</button> : <>{listing.identity_provider === 'custom:roblox' && <button type="button" className="trade-action-button chat" onClick={onOpenChat}><MessageCircle size={18} /> Chat</button>}<button type="button" className="trade-action-button trade-in-game" onClick={() => window.open('https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0', '_blank', 'noopener,noreferrer')}><Gamepad2 size={18} /> Trade in game</button><button type="button" className="trade-action-button make-offer" onClick={onMakeOffer}><Handshake size={18} /> Make an offer</button></>}</div>
+    <div className="trade-listing-actions">{own ? <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={16} /> Close offer</button> : <>{listing.identity_provider === 'custom:roblox' && <button type="button" className="trade-action-button chat" onClick={onOpenChat}><MessageCircle size={18} /> Chat</button>}<button type="button" className="trade-action-button accept-offer" onClick={onAccept} disabled={accepted || accepting}>{accepted ? <Check size={17} /> : accepting ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}{accepted ? 'Accepted' : accepting ? 'Accepting…' : 'Accept offer'}</button><button type="button" className="trade-action-button make-offer" onClick={onMakeOffer}><Handshake size={18} /> Make an offer</button></>}</div>
     {listing.message && <p className="trade-listing-message">“{listing.message}”</p>}
   </article>
 }

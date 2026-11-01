@@ -10,6 +10,7 @@ import { AdminManagement, AdminSelfSettings } from './admin/AdminManagement'
 import { ADMIN_PASSWORD_MIN_LENGTH, ADMIN_PASSWORD_POLICY_MESSAGE, isStrongAdminPassword } from '../shared/password-policy.js'
 import { TradeHub } from './TradeHub'
 import { NavIdentityMenu } from './NavIdentityMenu'
+import { TradeNotificationCenter, TradeNotificationNavLink } from './TradeNotifications'
 
 const PAGE_SIZE = 24
 const CATEGORY_OPTIONS = ['Car', 'Pattern', 'Color', 'Wheels', 'Boost', 'Trail', 'Goal Explosion', 'Demolition Explosion', 'Ball', 'Hat', 'Banner', 'Border', 'Title', 'Horn', 'Plate', 'Finish']
@@ -74,7 +75,7 @@ function AdminOptionPicker({ label, value, options, icon, onChange }: { label: s
     </div>}
   </div>
 }
-type View = 'values' | 'trade' | 'trades' | 'chat' | 'codes'
+type View = 'values' | 'trade' | 'trades' | 'chat' | 'notifications' | 'codes'
 type TradeLine = { id: string; quantity: number }
 type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
 type ColorDraft = { name: string; hex: string }
@@ -125,6 +126,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
       {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
       {onViewChange ? <button type="button" className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'chat'} onClick={() => { onViewChange('chat'); closeMenu() }}>Chat</button> : <a className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'chat' ? 'page' : undefined} href="/?tab=chat" onClick={closeMenu}>Chat</a>}
+      {onViewChange && <TradeNotificationNavLink active={activeView === 'notifications'} onClick={() => { onViewChange('notifications'); closeMenu() }} />}
       {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
     </nav>
     <div className="top-actions"><OnlineCount /><VisitCount /><NavIdentityMenu /></div>
@@ -134,7 +136,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
 function PublicApp() {
   const [view, setView] = useState<View>(() => {
     const tab = new URLSearchParams(location.search).get('tab')
-    return tab === 'trade' || tab === 'trades' || tab === 'chat' || tab === 'codes' ? tab : 'values'
+    return tab === 'trade' || tab === 'trades' || tab === 'chat' || tab === 'notifications' || tab === 'codes' ? tab : 'values'
   })
   const [items, setItems] = useState<Item[]>([])
   const [priceTrends, setPriceTrends] = useState<Record<string, PriceTrend>>({})
@@ -203,7 +205,7 @@ function PublicApp() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   useEffect(() => setPage(1), [search, category, rarity, sort])
 
-  const isTradeSpace = view === 'trades' || view === 'chat'
+  const isTradeSpace = view === 'trades' || view === 'chat' || view === 'notifications'
   return <div className={`app-shell${isTradeSpace ? ' trade-mode' : ''}`}>
     <SiteNav activeView={view} onViewChange={selectView} />
     <main>
@@ -225,8 +227,8 @@ function PublicApp() {
         {!isTradeSpace && <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
         </div>}
-        {view !== 'codes' && view !== 'chat' && !configured && <SetupNotice />}
-        {view !== 'codes' && view !== 'chat' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
+        {view !== 'codes' && view !== 'chat' && view !== 'notifications' && !configured && <SetupNotice />}
+        {view !== 'codes' && view !== 'chat' && view !== 'notifications' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
         {view === 'values' ? <>
           <div className="toolbar">
             <label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by item name" aria-label="Search by item name" />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} /></button>}</label>
@@ -238,7 +240,7 @@ function PublicApp() {
             <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} trend={priceTrends[item.id]} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
-        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : view === 'trades' || view === 'chat' ? <TradeHub items={items} view={view} onNavigateToChat={() => selectView('chat')} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
+        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : view === 'trades' || view === 'chat' ? <TradeHub items={items} view={view} onNavigateToChat={() => selectView('chat')} /> : view === 'notifications' ? <TradeNotificationCenter onOpenTradeBoard={() => selectView('trades')} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
       </section>
     </main>
     <AdminIdentities />
