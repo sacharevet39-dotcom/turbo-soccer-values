@@ -74,7 +74,7 @@ function AdminOptionPicker({ label, value, options, icon, onChange }: { label: s
     </div>}
   </div>
 }
-type View = 'values' | 'trade' | 'trades' | 'codes'
+type View = 'values' | 'trade' | 'trades' | 'chat' | 'codes'
 type TradeLine = { id: string; quantity: number }
 type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
 type ColorDraft = { name: string; hex: string }
@@ -124,6 +124,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
       {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
+      {onViewChange ? <button type="button" className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'chat'} onClick={() => { onViewChange('chat'); closeMenu() }}>Chat</button> : <a className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'chat' ? 'page' : undefined} href="/?tab=chat" onClick={closeMenu}>Chat</a>}
       {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
     </nav>
     <div className="top-actions"><OnlineCount /><VisitCount /><NavIdentityMenu /></div>
@@ -133,7 +134,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
 function PublicApp() {
   const [view, setView] = useState<View>(() => {
     const tab = new URLSearchParams(location.search).get('tab')
-    return tab === 'trade' || tab === 'trades' || tab === 'codes' ? tab : 'values'
+    return tab === 'trade' || tab === 'trades' || tab === 'chat' || tab === 'codes' ? tab : 'values'
   })
   const [items, setItems] = useState<Item[]>([])
   const [priceTrends, setPriceTrends] = useState<Record<string, PriceTrend>>({})
@@ -202,10 +203,11 @@ function PublicApp() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   useEffect(() => setPage(1), [search, category, rarity, sort])
 
-  return <div className={`app-shell${view === 'trades' ? ' trade-mode' : ''}`}>
+  const isTradeSpace = view === 'trades' || view === 'chat'
+  return <div className={`app-shell${isTradeSpace ? ' trade-mode' : ''}`}>
     <SiteNav activeView={view} onViewChange={selectView} />
     <main>
-      {view !== 'trades' && <section className="hero">
+      {!isTradeSpace && <section className="hero">
         <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line" /> ITEM VALUES</div>
           <h1>Turbo Soccer<br /><span>market</span></h1>
           <p>Check values before you trade.</p>
@@ -219,12 +221,12 @@ function PublicApp() {
         </div>
         <div className="hero-collectible-decor" aria-hidden="true">{HERO_ITEM_DECORATIONS.map((src, index) => <img key={src} src={src} alt="" style={{ '--decor-index': index } as React.CSSProperties} />)}</div>
       </section>}
-      <section className={`content-section${view === 'trades' ? ' trade-content-section' : ''}`}>
-        {view !== 'trades' && <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
+      <section className={`content-section${isTradeSpace ? ' trade-content-section' : ''}`}>
+        {!isTradeSpace && <div className="section-heading"><div><div className="eyebrow section-eyebrow">{view === 'values' ? 'VALUE LIST' : view === 'trade' ? 'TRADE TOOLS' : 'EXTRA'}</div><h2>{view === 'values' ? 'Item values' : view === 'trade' ? 'Trade calculator' : 'Promo codes'}</h2><p>{view === 'values' ? 'Search by name, filter by type, or sort by value.' : view === 'trade' ? 'Add items for each player to compare totals.' : 'Redeem these codes in Turbo Soccer while they are available.'}</p></div>
           {view === 'values' && <div className="item-count"><span className="count-dot" /> {items.length} {items.length === 1 ? 'item' : 'items'} listed</div>}
         </div>}
-        {view !== 'codes' && !configured && <SetupNotice />}
-        {view !== 'codes' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
+        {view !== 'codes' && view !== 'chat' && !configured && <SetupNotice />}
+        {view !== 'codes' && view !== 'chat' && loadError && <div className="inline-error" role="alert">Could not load the item list: {loadError} <button onClick={() => { setLoading(true); void loadItems() }}>Retry</button></div>}
         {view === 'values' ? <>
           <div className="toolbar">
             <label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by item name" aria-label="Search by item name" />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} /></button>}</label>
@@ -236,7 +238,7 @@ function PublicApp() {
             <div className={`item-grid${pageItems.length <= 3 ? ` item-grid-sparse sparse-${pageItems.length}` : ''}`}>{pageItems.map(item => <ItemCard item={item} trend={priceTrends[item.id]} key={item.id} />)}</div>
             {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onPage={setPage} />}
           </> : <EmptyItems search={search} onClear={() => { setSearch(''); setCategory('all') }} />}
-        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : view === 'trades' ? <TradeHub items={items} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
+        </> : view === 'trade' ? <TradeCalculator items={items} left={theirSide} right={ourSide} setLeft={setTheirSide} setRight={setOurSide} /> : view === 'trades' || view === 'chat' ? <TradeHub items={items} view={view} onNavigateToChat={() => selectView('chat')} /> : <PromoCodeShowcase codes={promoCodes} loading={loading} />}
       </section>
     </main>
     <AdminIdentities />

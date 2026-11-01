@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { SupabaseClient, UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gem, Handshake, LoaderCircle, MessageCircle, MessagesSquare, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gamepad2, Gem, Handshake, LoaderCircle, MessageCircle, MessagesSquare, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
+import { tradeChatContentError } from './lib/trade-chat-safety'
 
 type TradeLine = { id: string; quantity: number }
 type TradeCurrency = { coins: number; gems: number }
@@ -61,7 +62,7 @@ function relativeTime(value: string) {
   return `${days}d ago`
 }
 
-export function TradeHub({ items }: { items: Item[] }) {
+export function TradeHub({ items, view, onNavigateToChat }: { items: Item[]; view: 'trades' | 'chat'; onNavigateToChat: () => void }) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null)
   const [identities, setIdentities] = useState<UserIdentity[]>([])
   const [adminMode, setAdminMode] = useState(false)
@@ -71,7 +72,6 @@ export function TradeHub({ items }: { items: Item[] }) {
   const [notice, setNotice] = useState('')
   const [showComposer, setShowComposer] = useState(false)
   const [counterListing, setCounterListing] = useState<TradeListing | null>(null)
-  const [activeSection, setActiveSection] = useState<'market' | 'chat'>('market')
   const [activeChatThreadId, setActiveChatThreadId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState('all')
@@ -163,7 +163,7 @@ export function TradeHub({ items }: { items: Item[] }) {
     if (listing.identity_provider !== 'custom:roblox') return
     const client = adminMode ? supabase : tradeAuth
     if (!identities.some(identity => identity.provider === 'custom:roblox')) {
-      setActiveSection('chat')
+      onNavigateToChat()
       setNotice('Link your Roblox account to start a player chat.')
       return
     }
@@ -171,7 +171,7 @@ export function TradeHub({ items }: { items: Item[] }) {
     const { data, error } = await client.rpc('start_trade_chat', { p_listing_id: listing.id })
     if (error) { setNotice(errorMessage(error)); return }
     setActiveChatThreadId(data as string)
-    setActiveSection('chat')
+    onNavigateToChat()
   }
 
   const hasTradeIdentity = identities.some(identity => ['discord', 'custom:roblox'].includes(identity.provider))
@@ -180,14 +180,9 @@ export function TradeHub({ items }: { items: Item[] }) {
   return <div className="trade-hub">
     {notice && <div className="trade-hub-notice" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Dismiss message"><X size={15} /></button></div>}
 
-    <header className="trade-page-heading"><div><span className="eyebrow section-eyebrow">PLAYER MARKET</span><h1>Trade board</h1><p>Find a great swap, show off your items, and make a deal!</p></div><div className="trade-market-bubble" aria-hidden="true"><ArrowLeftRight size={30} /></div></header>
+    <header className="trade-page-heading"><div><span className="eyebrow section-eyebrow">{view === 'chat' ? 'ROBLOX COMMUNITY' : 'PLAYER MARKET'}</span><h1>{view === 'chat' ? 'Player chat' : 'Trade board'}</h1><p>{view === 'chat' ? 'Catch up with the players you have traded with.' : 'Find a great swap, show off your items, and make a deal!'}</p></div><div className="trade-market-bubble" aria-hidden="true">{view === 'chat' ? <MessagesSquare size={30} /> : <ArrowLeftRight size={30} />}</div></header>
 
-    <nav className="trade-hub-sections" aria-label="Trade sections">
-      <button type="button" className={activeSection === 'market' ? 'active' : ''} onClick={() => setActiveSection('market')}><ArrowLeftRight size={19} /> Offers <span>{listings.length}</span></button>
-      <button type="button" className={activeSection === 'chat' ? 'active' : ''} onClick={() => setActiveSection('chat')}><MessagesSquare size={19} /> Player chat <span className="trade-roblox-only">ROBLOX ONLY</span></button>
-    </nav>
-
-    {activeSection === 'chat' ? <TradeChatPanel client={chatClient} userId={sessionUserId} hasRoblox={hasRobloxIdentity} initialThreadId={activeChatThreadId} /> : <>
+    {view === 'chat' ? <TradeChatPanel client={chatClient} userId={sessionUserId} hasRoblox={hasRobloxIdentity} initialThreadId={activeChatThreadId} /> : <>
 
     <div className="trade-hub-toolbar"><label className="trade-hub-search"><Search size={19} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search players or items…" aria-label="Search trade listings" /></label><label className="trade-hub-filter"><span>Category</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All items</option>{categories.map(category => <option key={category}>{category}</option>)}</select></label><button type="button" className="trade-refresh-button" onClick={() => { setLoading(true); void loadListings() }} aria-label="Refresh trade listings"><RefreshCw size={18} /></button></div>
 
@@ -218,9 +213,15 @@ function TradeChatPanel({ client, userId, hasRoblox, initialThreadId }: { client
 
   const loadThreads = useCallback(async () => {
     if (!client || !userId || !hasRoblox) { setThreads([]); setLoadingThreads(false); return }
-    const { data, error: queryError } = await client.from('trade_chat_threads').select('*').order('last_message_at', { ascending: false }).limit(100)
-    if (queryError) { setError(errorMessage(queryError)); setLoadingThreads(false); return }
-    setThreads((data ?? []) as TradeChatThread[])
+    const pageSize = 500
+    const allThreads: TradeChatThread[] = []
+    for (let from = 0; ; from += pageSize) {
+      const { data, error: queryError } = await client.from('trade_chat_threads').select('*').order('last_message_at', { ascending: false }).range(from, from + pageSize - 1)
+      if (queryError) { setError(errorMessage(queryError)); setLoadingThreads(false); return }
+      allThreads.push(...((data ?? []) as TradeChatThread[]))
+      if (!data || data.length < pageSize) break
+    }
+    setThreads(allThreads)
     setLoadingThreads(false)
   }, [client, hasRoblox, userId])
 
@@ -251,6 +252,8 @@ function TradeChatPanel({ client, userId, hasRoblox, initialThreadId }: { client
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!client || !selectedId || !userId || !draft.trim() || sending) return
+    const contentError = tradeChatContentError(draft)
+    if (contentError) { setError(contentError); return }
     setSending(true); setError('')
     const { error: sendError } = await client.rpc('send_trade_chat_message', { p_thread_id: selectedId, p_body: draft })
     if (sendError) setError(errorMessage(sendError))
@@ -273,9 +276,9 @@ function TradeChatPanel({ client, userId, hasRoblox, initialThreadId }: { client
     </aside>
     <div className="trade-chat-conversation">{selected && selectedOther ? <>
       <header className="trade-chat-header"><span className="trade-chat-avatar large">{selectedOther.avatar ? <img src={selectedOther.avatar} alt="" /> : <UserRound size={23} />}</span><div><b>{selectedOther.name}</b><small>@{selectedOther.handle} · Roblox verified</small></div><a href={`https://www.roblox.com/users/${encodeURIComponent(selected.owner_id === userId ? selected.starter_roblox_user_id : selected.owner_roblox_user_id)}/profile`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Roblox profile</a></header>
-      <div className="trade-chat-context"><MessageCircle size={15} /> Conversation about a Turbo Soccer trade</div>
+      <div className="trade-chat-context"><MessageCircle size={15} /> Keep your trade safe: no insults, personal details, off-site links or Robux deals.</div>
       <div className="trade-chat-messages" ref={scrollRef} aria-live="polite">{loadingMessages && !messages.length ? <div className="trade-chat-message-empty">Loading messages…</div> : messages.length ? messages.map(message => <div key={message.id} className={`trade-chat-message${message.sender_id === userId ? ' mine' : ''}`}><p>{message.body}</p><time>{new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>) : <div className="trade-chat-message-empty"><MessageCircle size={28} /><b>Say hi to start the chat</b><span>Talk about the offer here, then complete item trades in Turbo Soccer.</span></div>}</div>
-      <form className="trade-chat-compose" onSubmit={event => void sendMessage(event)}><textarea value={draft} onChange={event => setDraft(event.target.value.slice(0, 1000))} maxLength={1000} rows={1} placeholder={`Message ${selectedOther.name}…`} aria-label="Message" /><span>{draft.length}/1000</span><button type="submit" disabled={!draft.trim() || sending} aria-label="Send message">{sending ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}</button></form>
+      <form className="trade-chat-compose" onSubmit={event => void sendMessage(event)}><textarea value={draft} onChange={event => { setDraft(event.target.value.slice(0, 1000)); setError('') }} maxLength={1000} rows={1} placeholder={`Message ${selectedOther.name}…`} aria-label="Message" /><span>{draft.length}/1000</span><button type="submit" disabled={!draft.trim() || sending} aria-label="Send message">{sending ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}</button></form>
     </> : <div className="trade-chat-welcome"><div className="trade-chat-gate-icon"><MessagesSquare size={30} /></div><h2>Trade chat</h2><p>Pick a conversation, or open a Roblox player’s offer and press <b>Chat</b> to talk about a trade.</p><span><ShieldCheck size={16} /> Messages are private to the two linked Roblox accounts.</span></div>}</div>
     {error && <div className="trade-chat-error" role="alert">{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss error"><X size={14} /></button></div>}
   </section>
@@ -291,7 +294,7 @@ function TradeListingCard({ listing, own, onClose, onOpenChat, onMakeOffer }: { 
     <TradeListingItems title="OFFERING" tone="offer" lines={offer} currencies={{ coins: listing.offer_coins, gems: listing.offer_gems }} />
     <span className="trade-listing-swap"><ArrowLeftRight size={19} /></span>
     <TradeListingItems title="LOOKING FOR" tone="want" lines={want} currencies={{ coins: listing.want_coins, gems: listing.want_gems }} />
-    <div className="trade-listing-actions">{own ? <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={16} /> Close offer</button> : <>{listing.identity_provider === 'custom:roblox' && <button type="button" className="trade-action-button communicate" onClick={onOpenChat}><MessageCircle size={19} /> Chat</button>}<button type="button" className="trade-action-button make-offer" onClick={onMakeOffer}><Handshake size={19} /> Make an offer</button></>}</div>
+    <div className="trade-listing-actions">{own ? <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={16} /> Close offer</button> : <>{listing.identity_provider === 'custom:roblox' && <button type="button" className="trade-action-button chat" onClick={onOpenChat}><MessageCircle size={18} /> Chat</button>}<button type="button" className="trade-action-button trade-in-game" onClick={() => window.open('https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0', '_blank', 'noopener,noreferrer')}><Gamepad2 size={18} /> Trade in game</button><button type="button" className="trade-action-button make-offer" onClick={onMakeOffer}><Handshake size={18} /> Make an offer</button></>}</div>
     {listing.message && <p className="trade-listing-message">“{listing.message}”</p>}
   </article>
 }

@@ -489,13 +489,7 @@
   .trade-action-button { min-height: 46px; padding-inline: 7px; gap: 6px; font-size: 12px; }
 }
 
-/* Roblox-only player chat */
-.trade-hub-sections { display: flex; gap: 10px; padding: 7px; margin: 0 0 22px; border: 1px solid #7841a1; border-radius: 17px; background: linear-gradient(120deg, #2e084e, #22073d); box-shadow: inset 0 1px #ffffff10, 0 4px 0 #19032e; }
-.trade-hub-sections > button { min-height: 54px; display: inline-flex; align-items: center; gap: 10px; padding: 0 21px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #d5bbe9; font: 900 16px 'Nunito', 'DM Sans', sans-serif; cursor: pointer; transition: background .16s ease, color .16s ease, transform .16s ease; }
-.trade-hub-sections > button:hover { transform: translateY(-1px); color: #fff; }
-.trade-hub-sections > button.active { border-color: #b267e5; background: linear-gradient(145deg, #7e2ab7, #541182); color: #fff; box-shadow: 0 3px 0 #31075b; }
-.trade-hub-sections > button > span:not(.trade-roblox-only) { min-width: 24px; padding: 2px 7px; border-radius: 999px; background: #2d0949; color: #dfc1f7; font-size: 12px; text-align: center; }
-.trade-roblox-only { padding: 4px 7px; border: 1px solid #56d9bb; border-radius: 999px; background: #12463e; color: #9fffe0; font: 900 9px 'Nunito', 'DM Sans', sans-serif; letter-spacing: .06em; }
+/* Dedicated Roblox player chat page */
 .trade-chat-panel { position: relative; display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); min-height: min(700px, 72vh); overflow: hidden; border: 2px solid #8244b1; border-radius: 22px; background: radial-gradient(ellipse at 82% 0%, #5b1b8a55, transparent 46%), linear-gradient(130deg, #25063c, #1d082f 70%, #270640); box-shadow: 0 8px 0 #160225, 0 18px 40px #10021c88; font-family: 'Nunito', 'DM Sans', sans-serif; }
 .trade-chat-inbox { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #60367b; background: linear-gradient(180deg, #32104e, #25093d 65%, #200633); }
 .trade-chat-inbox > header { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 17px 19px; border-bottom: 1px solid #60367b; }
@@ -641,3 +635,63 @@
 .trade-message-field textarea { border-color: #684181; background: #281239; color: #fff; }
 .trade-composer-footer { border-top-color: #56316c; }
 .trade-wizard-back { border-color: #81549d; background: #3b1a50; color: #fff; }
+
+/* Cleaner, consistent trade actions and calmer marketplace surfaces. */
+.trade-page-heading { border-color: #563b70; background: linear-gradient(112deg, #241b2d, #301b43 64%, #271b35); box-shadow: 0 5px 0 #160e1d, 0 12px 28px #0003; }
+.trade-page-heading h1 { text-shadow: none; }
+.trade-market-bubble { border-color: #e8ffaf; box-shadow: 0 4px 0 #538b2d; }
+.trade-hub-toolbar { margin-top: 0; }
+.trade-hub-toolbar .trade-hub-search, .trade-hub-toolbar .trade-hub-filter, .trade-refresh-button { border-color: #493951; background: #211b26; }
+.trade-hub-toolbar .trade-hub-search:focus-within, .trade-hub-toolbar .trade-hub-filter:focus-within, .trade-refresh-button:hover { border-color: #a579c4; }
+.trade-listing-card { border-color: #463b4d; background: #211d24; box-shadow: 0 4px 12px #0003; }
+.trade-listing-card:hover { border-color: #725980; box-shadow: 0 7px 18px #0004; }
+.trade-listing-card.from-admin { border-color: #657448; box-shadow: inset 3px 0 #c9ef72, 0 4px 12px #0003; }
+.trade-listing-player:hover .trade-profile-chevron { color: #eee; }
+.trade-player-avatar { border-color: #84778b; box-shadow: 0 3px 0 #17131a; }
+.trade-listing-items { border-color: #403743; background: #19171c; }
+.trade-listing-items.offer { border-top-color: #73ddc2; }
+.trade-listing-items.want { border-top-color: #e5c76c; }
+.trade-listing-items-heading b { border-color: #4b404f; background: #27212c; color: #ded5e2; }
+.trade-listing-swap { border-color: #6b5829; background: #322917; color: #ffdf75; box-shadow: none; }
+.trade-listing-message { border: 1px solid #433948; background: #29232d; color: #eee7f1; }
+.trade-player-profile-detail { border-color: #4b404f; background: #28232b; }
+.trade-player-profile-detail > img { border-color: #625568; }
+.trade-player-profile-detail > a { border-color: #574860; background: #332a38; }
+.trade-publish-callout { border-color: #463b4d; background: #211d24; box-shadow: 0 4px 12px #0003; }
+.trade-callout-icon { border-color: #6f5979; background: #382c3f; color: #d5f598; }
+.trade-publish-button { border-color: #736080; background: #392d42; color: #f8f1fb; box-shadow: 0 3px 0 #17101b; }
+.trade-publish-button:not(:disabled):hover { background: #493856; }
+.trade-listings-heading h2 { text-shadow: none; }
+.trade-listings-heading .section-eyebrow { color: #c9ef72; }
+.trade-open-count { border-color: #456d5e; background: #1d3029; color: #a3e8cc; }
+.trade-open-count i { background: #73ddc2; box-shadow: none; }
+.trade-listing-actions { gap: 8px; }
+.trade-action-button { min-height: 48px; padding: 9px 11px; border-width: 1px; border-radius: 12px; font-size: 13px; font-weight: 900; box-shadow: 0 3px 0 #17101b; }
+.trade-action-button:hover { transform: translateY(-1px); box-shadow: 0 4px 0 #17101b; }
+.trade-action-button.chat { border-color: #8c6baa; background: #382846; color: #f7eefe; }
+.trade-action-button.trade-in-game { border-color: #8ba74f; background: #38452a; color: #f2ffd9; }
+.trade-action-button.make-offer { border-color: #ae72cf; background: #633087; color: #fff; }
+.trade-action-button.communicate { border-color: #8c6baa; background: #382846; }
+.trade-listing-actions .trade-close-button { min-height: 46px; border-radius: 11px; font-size: 13px; }
+.trade-chat-panel { border-color: #51445a; border-radius: 18px; background: #211d24; box-shadow: 0 5px 0 #17131a, 0 14px 32px #0003; }
+.trade-chat-inbox { background: #1b181e; }
+.trade-chat-inbox > header, .trade-chat-header { border-color: #3f3545; background: #27222b; }
+.trade-chat-thread.active { border-color: #876c99; background: #302739; box-shadow: inset 3px 0 #c9ef72; }
+.trade-chat-context { border-color: #4b404f; background: #27212c; }
+.trade-chat-welcome > span { border-color: #566a3f; background: #293322; }
+.trade-chat-compose { border-color: #574665; background: #19161d; box-shadow: none; }
+.trade-chat-compose > button { border-color: #d5f598; box-shadow: 0 3px 0 #4b7425; }
+.trade-chat-gate { border-color: #51445a; background: #211d24; box-shadow: 0 5px 0 #17131a; }
+.trade-chat-gate-icon { transform: none; }
+.trade-hub-notice { border-color: #68604a; background: #2b281f; }
+@media (max-width: 1250px) {
+  .trade-listing-actions { grid-column: 2 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .trade-listing-actions { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trade-action-button { min-height: 46px; padding-inline: 8px; font-size: 12px; }
+}
+@media (max-width: 600px) {
+  .trade-listing-actions { grid-template-columns: 1fr; }
+  .trade-action-button { min-height: 45px; font-size: 13px; }
+}

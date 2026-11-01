@@ -1,0 +1,10 @@
+const insultPattern = /(^|[^\p{L}\p{N}])(fuck(?:ing|er|ers)?|shit(?:ty|head)?|bitch(?:es)?|asshole|bastard|dickhead|cunt|retard(?:ed)?|motherfucker|putain|merde|connard(?:e|s)?|salope|encul[eé]|fils? de pute|idiot(?:e|s)?|stupid|dumb|moron|loser|abruti(?:e|s)?|d[eé]bile(?:s)?|ta gueule|ferme[- ]la|t['’]?es con(?:ne)?)(?=$|[^\p{L}\p{N}])/iu
+const personalDataPattern = /(?:\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b)|(?:\b(?:https?:\/\/|www\.)\S+)|(?:\b(?:discord\.gg|t\.me|wa\.me)\/\S*)|(?:\b[a-z0-9-]+\.(?:com|net|org|gg|io|me|fr|tv|co|uk|xyz|link)(?:\/\S*)?\b)|(?:\+?\d[\d\s().-]{5,}\d)|(?:\b(?:my (?:full name|real name|address|phone|number|email|school|location|age|discord|snap(?:chat)?|instagram|tiktok|whatsapp|telegram)(?: is)?|my name is|i live at|contact me at|reach me at|dm me on|mon nom complet|mon adresse|mon num[eé]ro|mon t[eé]l[eé]phone|mon coll[eè]ge|mon lyc[eé]e|j['’]?habite|mon compte (?:discord|snap(?:chat)?|instagram|tiktok|whatsapp)|contacte-moi sur|mon insta c'est|mon snap c'est)\b)|(?:\b(?:send(?: me)?|share(?: with me)?|give me|what'?s|what is|tell(?: me)?)\s+(?:your|the)?\s*(?:full name|address|phone|number|email|discord|snap(?:chat)?|instagram|tiktok|whatsapp|school|location)\b)|(?:\b(?:donne-moi|donne moi|envoie-moi|envoie moi|c'est quoi ton|c'est quoi ta)\s+(?:adresse|num[eé]ro|t[eé]l[eé]phone|email|discord|snap|instagram|lyc[eé]e|coll[eè]ge)\b)|(?:\b\d{1,6}\s+[\p{L}0-9 .'-]{2,30}\s+(?:street|st|road|rd|avenue|ave|boulevard|blvd|rue|route|chemin)\b)/iu
+const robuxTradePattern = /(^|[^\p{L}\p{N}])(robux|paypal|cash ?app|venmo|real money|real[- ]world money|money for items|sell(?:ing)? for cash|buy(?:ing)? for cash|argent r[eé]el|vrai argent)(?=$|[^\p{L}\p{N}])/iu
+
+export function tradeChatContentError(value: string) {
+  if (insultPattern.test(value)) return 'Please keep the chat friendly. Insults are not allowed.'
+  if (personalDataPattern.test(value)) return 'For your safety, do not share personal details, phone numbers, email addresses, or links.'
+  if (robuxTradePattern.test(value)) return 'Robux and real-money trades are not allowed. Trade Turbo Soccer items in game only.'
+  return null
+}
