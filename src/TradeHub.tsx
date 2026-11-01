@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { UserIdentity } from '@supabase/supabase-js'
-import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gem, LoaderCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, BadgeCheck, Check, ChevronDown, Clock3, ExternalLink, Gamepad2, Gem, Handshake, LoaderCircle, MessageCircle, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import type { Item } from './lib/supabase'
 import { errorMessage, itemImage, supabase, tradeAuth } from './lib/supabase'
 
@@ -52,6 +52,7 @@ export function TradeHub({ items }: { items: Item[] }) {
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState('')
   const [showComposer, setShowComposer] = useState(false)
+  const [counterListing, setCounterListing] = useState<TradeListing | null>(null)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -148,26 +149,32 @@ export function TradeHub({ items }: { items: Item[] }) {
 
     <div className="trade-listings-heading"><div><span className="eyebrow section-eyebrow">COMMUNITY MARKET</span><h2>Open trade offers</h2></div><span className="trade-open-count"><i />{filteredListings.length} active</span></div>
     {loadError && <div className="inline-error" role="alert">Could not load the trade board: {loadError}</div>}
-    {loading ? <div className="trade-listings-loading"><LoaderCircle className="spin" size={20} /> Loading offers…</div> : filteredListings.length ? <div className="trade-listings">{filteredListings.map(listing => <TradeListingCard key={listing.id} listing={listing} own={listing.user_id === sessionUserId} onClose={() => void closeListing(listing)} />)}</div> : <div className="trade-listings-empty"><div className="trade-empty-icon"><ArrowLeftRight size={22} /></div><b>{listings.length ? 'No listings match those filters' : 'No open offers yet'}</b><p>Connect your Roblox or Discord account and post the first trade.</p></div>}
+    {loading ? <div className="trade-listings-loading"><LoaderCircle className="spin" size={20} /> Loading offers…</div> : filteredListings.length ? <div className="trade-listings">{filteredListings.map(listing => <TradeListingCard key={listing.id} listing={listing} own={listing.user_id === sessionUserId} onClose={() => void closeListing(listing)} onMakeOffer={() => { setCounterListing(listing); setShowComposer(true) }} />)}</div> : <div className="trade-listings-empty"><div className="trade-empty-icon"><ArrowLeftRight size={22} /></div><b>{listings.length ? 'No listings match those filters' : 'No open offers yet'}</b><p>Connect your Roblox or Discord account and post the first trade.</p></div>}
 
     <section className="trade-publish-callout"><div><span className="trade-callout-icon"><Plus size={19} /></span><div><b>Looking for a specific item?</b><p>Publish what you offer and what you want. Your verified profile appears on the listing.</p></div></div><button type="button" className="trade-publish-button" disabled={!hasTradeIdentity} onClick={() => setShowComposer(true)}><Plus size={16} /> Create a listing</button>{!hasTradeIdentity && <small>Connect Roblox or Discord to publish.</small>}</section>
 
-    {showComposer && <TradeComposer items={items} saving={saving} onClose={() => setShowComposer(false)} onPublish={(offer, want, message, offerCurrency, wantCurrency) => void publishListing(offer, want, message, offerCurrency, wantCurrency)} />}
+    {showComposer && <TradeComposer key={counterListing?.id ?? 'new'} items={items} saving={saving} counterListing={counterListing} onClose={() => { setShowComposer(false); setCounterListing(null) }} onPublish={(offer, want, message, offerCurrency, wantCurrency) => void publishListing(offer, want, message, offerCurrency, wantCurrency)} />}
   </div>
 }
 
-function TradeListingCard({ listing, own, onClose }: { listing: TradeListing; own: boolean; onClose: () => void }) {
+function TradeListingCard({ listing, own, onClose, onMakeOffer }: { listing: TradeListing; own: boolean; onClose: () => void; onMakeOffer: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const offer = listing.trade_listing_items.filter(line => line.side === 'offer')
   const want = listing.trade_listing_items.filter(line => line.side === 'want')
   const contactLabel = listing.identity_provider === 'custom:roblox' ? 'View Roblox profile' : 'View Discord profile'
+  const contactUrl = listing.trader_profile_url || (listing.identity_provider === 'custom:roblox' ? `https://www.roblox.com/users/${encodeURIComponent(listing.identity_provider_id)}/profile` : `https://discord.com/users/${encodeURIComponent(listing.identity_provider_id)}`)
+  function acceptAndMeet() {
+    if (window.confirm(`Ready to meet ${listing.trader_name} in Turbo Soccer? This opens the game; check the items together before completing the trade.`)) {
+      window.open('https://www.roblox.com/games/101880234193261/Turbo-Soccer-Beta-1-0', '_blank', 'noopener,noreferrer')
+    }
+  }
   return <article className={`trade-listing-card${listing.trader_is_admin ? ' from-admin' : ''}${profileOpen ? ' profile-open' : ''}`}>
     <button type="button" className="trade-listing-player" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-label={`${profileOpen ? 'Hide' : 'Show'} ${listing.trader_name}'s profile`}><div className="trade-player-avatar">{listing.trader_avatar_url || listing.identity_provider === "custom:roblox" ? <img src={listing.trader_avatar_url || `https://www.roblox.com/headshot-thumbnail/image?userId=${encodeURIComponent(listing.identity_provider_id)}&width=150&height=150&format=png`} alt="" loading="lazy" /> : <UserRound size={23} />}</div><div className="trade-player-info"><b>{listing.trader_name}</b>{listing.trader_handle && <small className="trade-player-handle">@{listing.trader_handle}</small>}<span className="trade-player-platform"><i className={listing.identity_provider === 'discord' ? 'discord' : 'roblox'} />Verified {identityLabel(listing.identity_provider)}</span>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Verified Owner' : 'Verified Admin'}{listing.trader_admin_title ? ` · ${listing.trader_admin_title}` : ''}</span>}<small><Clock3 size={12} />{relativeTime(listing.created_at)}</small></div><span className={`trade-profile-chevron${profileOpen ? ' open' : ''}`} aria-hidden="true"><ChevronDown size={21} /></span></button>
     {profileOpen && <div className="trade-player-profile-detail">{listing.trader_avatar_url && <img src={listing.trader_avatar_url} alt={`${listing.trader_name}'s Roblox avatar`} /> }<div><b>{listing.trader_admin_display_name || listing.trader_name}</b><small>{listing.identity_provider === 'custom:roblox' ? `Roblox ID · ${listing.identity_provider_id}` : `Discord ID · ${listing.identity_provider_id}`}</small>{listing.trader_is_admin && <span className="trade-admin-badge"><BadgeCheck size={13} />{listing.trader_admin_role === 'OWNER' ? 'Turbo Soccer Owner' : 'Turbo Soccer Admin'}</span>}</div>{listing.trader_profile_url && <a href={listing.trader_profile_url} target="_blank" rel="noreferrer" aria-label={contactLabel}><ExternalLink size={15} /></a>}</div>}
     <TradeListingItems title="OFFERING" tone="offer" lines={offer} currencies={{ coins: listing.offer_coins, gems: listing.offer_gems }} />
     <span className="trade-listing-swap"><ArrowLeftRight size={19} /></span>
     <TradeListingItems title="LOOKING FOR" tone="want" lines={want} currencies={{ coins: listing.want_coins, gems: listing.want_gems }} />
-    <div className="trade-listing-actions">{own && <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={14} /> Close offer</button>}</div>
+    <div className="trade-listing-actions">{own ? <button type="button" className="trade-close-button" onClick={onClose}><Trash2 size={16} /> Close offer</button> : <><a className="trade-action-button communicate" href={contactUrl} target="_blank" rel="noreferrer" aria-label={`${contactLabel}: ${listing.trader_name}`}><MessageCircle size={18} /> Communicate</a><button type="button" className="trade-action-button accept" onClick={acceptAndMeet}><Gamepad2 size={19} /> Accept</button><button type="button" className="trade-action-button make-offer" onClick={onMakeOffer}><Handshake size={19} /> Make an offer</button></>}</div>
     {listing.message && <p className="trade-listing-message">“{listing.message}”</p>}
   </article>
 }
@@ -180,12 +187,12 @@ function TradeCurrencyListing({ type, quantity }: { type: keyof TradeCurrency; q
   return <div className="trade-listing-currency"><div className={`trade-listing-currency-icon ${type}`}>{type === 'coins' ? <img src="/brand/coin.png" alt="" /> : <Gem size={22} />}</div><span><b>{new Intl.NumberFormat('en-US').format(quantity)}</b><small>{type === 'coins' ? 'Coins' : 'Gems'}</small></span></div>
 }
 
-function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; saving: boolean; onClose: () => void; onPublish: (offer: TradeLine[], want: TradeLine[], message: string, offerCurrency: TradeCurrency, wantCurrency: TradeCurrency) => void }) {
-  const [offer, setOffer] = useState<TradeLine[]>([])
-  const [want, setWant] = useState<TradeLine[]>([])
-  const [offerCurrency, setOfferCurrency] = useState<TradeCurrency>({ coins: 0, gems: 0 })
-  const [wantCurrency, setWantCurrency] = useState<TradeCurrency>({ coins: 0, gems: 0 })
-  const [message, setMessage] = useState('')
+function TradeComposer({ items, saving, counterListing, onClose, onPublish }: { items: Item[]; saving: boolean; counterListing: TradeListing | null; onClose: () => void; onPublish: (offer: TradeLine[], want: TradeLine[], message: string, offerCurrency: TradeCurrency, wantCurrency: TradeCurrency) => void }) {
+  const [offer, setOffer] = useState<TradeLine[]>(() => counterListing?.trade_listing_items.filter(line => line.side === 'want').map(({ item, quantity }) => ({ id: item.id, quantity })) ?? [])
+  const [want, setWant] = useState<TradeLine[]>(() => counterListing?.trade_listing_items.filter(line => line.side === 'offer').map(({ item, quantity }) => ({ id: item.id, quantity })) ?? [])
+  const [offerCurrency, setOfferCurrency] = useState<TradeCurrency>(() => ({ coins: counterListing?.want_coins ?? 0, gems: counterListing?.want_gems ?? 0 }))
+  const [wantCurrency, setWantCurrency] = useState<TradeCurrency>(() => ({ coins: counterListing?.offer_coins ?? 0, gems: counterListing?.offer_gems ?? 0 }))
+  const [message, setMessage] = useState(() => counterListing ? `Offer for ${counterListing.trader_name}` : '')
   const [error, setError] = useState('')
   const [step, setStep] = useState<1 | 2 | 3>(1)
   useEffect(() => {
@@ -210,7 +217,7 @@ function TradeComposer({ items, saving, onClose, onPublish }: { items: Item[]; s
   const lines = step === 1 ? want : offer
   const currency = step === 1 ? wantCurrency : offerCurrency
   const title = step === 1 ? 'Choose what you want' : step === 2 ? 'Choose what you offer' : 'Review your offer'
-  const description = step === 1 ? 'Select the items and quantities you would like in return.' : step === 2 ? 'Now choose the items and quantities you are offering.' : 'Check both sides, adjust quantities, then publish when ready.'
+  const description = step === 1 ? counterListing ? `Start a counter listing for ${counterListing.trader_name}. Their offered items are selected for you.` : 'Select the items and quantities you would like in return.' : step === 2 ? 'Now choose the items and quantities you are offering.' : 'Check both sides, adjust quantities, then publish when ready.'
   return <div className="trade-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !saving) onClose() }}><section className="trade-composer" role="dialog" aria-modal="true" aria-labelledby="trade-composer-title">
     <header className="trade-composer-header"><div><span className="eyebrow section-eyebrow">NEW TRADE · STEP {step} OF 3</span><h2 id="trade-composer-title">{title}</h2><p>{description}</p></div><button type="button" className="trade-composer-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={19} /></button></header>
     <nav className="trade-wizard-steps" aria-label="Trade creation steps">{[{ number: 1, label: 'I want' }, { number: 2, label: 'I offer' }, { number: 3, label: 'Review' }].map(entry => <button type="button" key={entry.number} className={`trade-wizard-step${step === entry.number ? ' active' : ''}${step > entry.number ? ' complete' : ''}`} onClick={() => { if (entry.number < step) { setError(''); setStep(entry.number as 1 | 2 | 3) } }} disabled={entry.number > step}><span>{step > entry.number ? <Check size={13} /> : entry.number}</span>{entry.label}</button>)}</nav>
