@@ -769,7 +769,7 @@ main { padding: 0 clamp(18px, 3vw, 52px); }
 }
 .site-topbar .brand-logo { transition: transform .28s cubic-bezier(.2,.8,.2,1), filter .28s ease; }
 .site-topbar .brand:hover .brand-logo { transform: scale(1.06) rotate(-2deg); filter: drop-shadow(0 3px 8px #ffffff2b); }
-.site-topbar .nav-link { transition: color .18s ease, transform .18s ease; }
+.site-topbar .nav-link { display: inline-flex; align-items: center; transition: color .18s ease, transform .18s ease; }
 .site-topbar .nav-link:hover { transform: translateY(-2px); }
 .site-topbar .nav-link:after { transition: transform .24s cubic-bezier(.2,.8,.2,1), background-color .18s ease; }
 .site-topbar .admin-link { transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
