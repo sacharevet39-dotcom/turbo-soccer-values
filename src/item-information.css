@@ -10,3 +10,4 @@
 .item-info-editor { min-width:0; display:grid; gap:.8rem; margin:0; padding:1rem; border:1px solid #77849366; border-radius:10px; }
 .item-info-editor select { width:100%; padding:.55rem; font:inherit; }
 @media(max-width:420px){.item-information > div { grid-template-columns:1fr; gap:.2rem; }}
+.halloween-collection { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:1rem; margin-top:1.5rem } .halloween-collection img { object-fit:contain; max-width:100%; border-radius:.75rem } .halloween-collection h2 a {color:inherit}

@@ -105,12 +105,13 @@ function App() {
   }, [])
   const isAdminRoute = window.location.pathname.startsWith('/admin')
   if (isAdminRoute) return <Admin />
+  if (window.location.pathname.replace(/\/$/, '') === '/halloween') return <HalloweenPage />
   const itemRoute = window.location.pathname.match(/^\/item\/([^/]+)\/?$/)
   if (itemRoute) return <ItemDetailsPage itemId={decodeURIComponent(itemRoute[1])} />
   return <PublicApp />
 }
 
-function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onViewChange?: (view: View) => void }) {
+function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin' | 'halloween'; onViewChange?: (view: View) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   useEffect(() => {
     if (!menuOpen) return
@@ -123,6 +124,7 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin'; onV
     <a className="brand" href="/" aria-label="Turbo Soccer Values home" onClick={closeMenu}><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a>
     <button type="button" className={`mobile-menu-toggle ${menuOpen ? 'active' : ''}`} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="site-navigation" onClick={() => setMenuOpen(open => !open)}>{menuOpen ? <X size={19} /> : <Menu size={19} />}<span>{menuOpen ? 'Close' : 'Menu'}</span></button>
     <nav id="site-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
+      <a href="/halloween" className={activeView === 'halloween' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'halloween' ? 'page' : undefined} onClick={closeMenu}>Halloween</a>
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
       {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
@@ -449,6 +451,36 @@ function EmptyItems({ search, onClear }: { search: string; onClear: () => void }
 
 function Pagination({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (n: number) => void }) {
   return <div className="pagination"><span>Page {page} of {pageCount}</span><div><button disabled={page <= 1} aria-label="Previous page" onClick={() => onPage(page - 1)}><ChevronLeft size={17} /></button><button disabled={page >= pageCount} aria-label="Next page" onClick={() => onPage(page + 1)}><ChevronRight size={17} /></button></div></div>
+}
+
+// These catalogue IDs identify the five original TurboSoccer1 items, even after an admin edit.
+const halloweenIds = [
+  '4d8e79a6-83b6-491a-9db4-c2f782407789', '285b427d-50b0-40a6-865e-ccebb77145b4',
+  'c4552f55-8756-46e7-b6f9-ffc5c5e9aa9d', 'a57784a8-323c-41a5-9070-18336725d1c9',
+  '5b6d88df-da1c-4308-a734-9b6375d5dddf',
+]
+function HalloweenPage() {
+  const [items, setItems] = useState<Item[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    async function load() {
+      if (!supabase) { setFailed(true); return }
+      const { data, error } = await supabase.from('items').select('*').in('id', halloweenIds)
+      if (!active) return
+      if (error) setFailed(true)
+      else setItems((data as Item[]).sort((a,b) => halloweenIds.indexOf(a.id) - halloweenIds.indexOf(b.id)))
+    }
+    void load()
+    return () => { active = false }
+  }, [])
+  return <><SiteNav activeView="halloween" /><main className="detail-page"><h1>Halloween collection</h1>
+    {failed ? <p role="alert">Could not load the collection. <a href="/halloween">Retry</a></p> : !items ? <p role="status">Loading items…</p> :
+    <div className="halloween-collection">{items.map(item => <article key={item.id} className="detail-card">
+      {itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt={item.name} width="150" height="150" />}
+      <h2><a href={'/item/' + item.id}>{item.name}</a></h2><ItemInformation item={item} />
+    </article>)}</div>}
+  </main></>
 }
 
 function ItemInformation({ item }: { item: Item }) {
