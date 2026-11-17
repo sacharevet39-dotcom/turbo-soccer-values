@@ -1,3 +1,4 @@
+import './item-information.css'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowDownWideNarrow, ArrowLeftRight, ArrowUpWideNarrow, Check, ChevronDown, ChevronLeft,
@@ -77,12 +78,12 @@ function AdminOptionPicker({ label, value, options, icon, onChange }: { label: s
 }
 type View = 'values' | 'trade' | 'trades' | 'chat' | 'notifications' | 'codes'
 type TradeLine = { id: string; quantity: number }
-type FormState = { name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
+type FormState = { how_to_obtain: string; is_limited: string; is_available: string; availability_note: string; event_start: string; event_end: string; name: string; value: string; category: string; rarity: string; description: string; image_path: string; demand: string; variant_parent_id: string; variant_color_name: string; variant_color_hex: string }
 type ColorDraft = { name: string; hex: string }
 type PromoForm = { code: string; reward: string; is_expired: boolean }
 type AdminProfile = { role: 'OWNER' | 'ADMIN'; username: string | null; display_name: string; title: string; title_color: string; status: string; must_change_password: boolean; last_seen: string | null }
 type AdminSection = 'publish' | 'profile' | 'accounts' | 'codes'
-const blankForm: FormState = { name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '', variant_parent_id: '', variant_color_name: '', variant_color_hex: '' }
+const blankForm: FormState = { how_to_obtain: '', is_limited: '', is_available: '', availability_note: '', event_start: '', event_end: '', name: '', value: '', category: '', rarity: '', description: '', image_path: '', demand: '', variant_parent_id: '', variant_color_name: '', variant_color_hex: '' }
 const blankPromoForm: PromoForm = { code: '', reward: '', is_expired: false }
 
 function App() {
@@ -450,6 +451,17 @@ function Pagination({ page, pageCount, onPage }: { page: number; pageCount: numb
   return <div className="pagination"><span>Page {page} of {pageCount}</span><div><button disabled={page <= 1} aria-label="Previous page" onClick={() => onPage(page - 1)}><ChevronLeft size={17} /></button><button disabled={page >= pageCount} aria-label="Next page" onClick={() => onPage(page + 1)}><ChevronRight size={17} /></button></div></div>
 }
 
+function ItemInformation({ item }: { item: Item }) {
+  const formatDate = (date: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(date + 'T00:00:00Z'))
+  return <dl className="item-information">
+    <div><dt>How to Obtain</dt><dd>{item.how_to_obtain || 'Unknown'}</dd></div>
+    <div><dt>Limited</dt><dd><span className={item.is_limited ? 'info-badge limited' : 'info-badge'}>{item.is_limited == null ? 'Unknown' : item.is_limited ? 'Yes' : 'No'}</span></dd></div>
+    <div><dt>Availability</dt><dd><span className={'info-badge ' + (item.is_available == null ? '' : item.is_available ? 'available' : 'unavailable')}>{item.is_available == null ? 'Unknown' : item.is_available ? 'Available' : 'Unavailable'}</span>{item.availability_note && <p>{item.availability_note}</p>}</dd></div>
+    {item.event_start && <div><dt>Event start</dt><dd>{formatDate(item.event_start)}</dd></div>}
+    {item.event_end && <div><dt>Event end</dt><dd>{formatDate(item.event_end)}</dd></div>}
+  </dl>
+}
+
 function ItemDetailsPage({ itemId }: { itemId: string }) {
   const [item, setItem] = useState<Item | null>(null)
   const [related, setRelated] = useState<Item[]>([])
@@ -539,7 +551,7 @@ function ItemDetailsPage({ itemId }: { itemId: string }) {
   }
   return <div className="app-shell"><SiteNav activeView="values" />
     <main className="detail-page"><a className="back-to-items" href="/"><ChevronLeft size={17} /> All items</a>{loading ? <div className="detail-loading"><div className="spinner" /> Loading item…</div> : error || !item ? <div className="empty-state"><h3>{configured ? 'Item unavailable' : 'Connect the database first'}</h3><p>{error || 'Item details will appear after Supabase is connected.'}</p><a className="secondary-button" href="/">Back to item list</a></div> : <>
-      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><PriceTrendIndicator trend={priceHistory.length ? { item_id: item.id, current_value: priceHistory.at(-1)!.value, previous_value: priceHistory.length > 1 ? priceHistory.at(-2)!.value : priceHistory.at(-1)!.value } : undefined} /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div>{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
+      <div className="detail-page-grid"><div className="detail-art-wrap"><span className="detail-art-sticker">TURBO SOCCER ITEM</span>{itemImage(item.image_path) ? <div className="detail-item-art"><img src={itemImage(item.image_path)!} alt={item.name} className="detail-art" />{item.variant_color_hex && <span className="variant-color-band detail-variant-band" style={{ '--variant-color': item.variant_color_hex } as React.CSSProperties} title={item.variant_color_name ?? 'Color variant'} />}</div> : <div className="image-placeholder"><BrandMark /><span>IMAGE PENDING</span></div>}</div><article className="detail-card"><div className="eyebrow section-eyebrow">ITEM PROFILE</div><h1>{item.name}</h1><div className="detail-value-label">CURRENT VALUE</div><CoinValue value={item.value} className="detail-value" /><PriceTrendIndicator trend={priceHistory.length ? { item_id: item.id, current_value: priceHistory.at(-1)!.value, previous_value: priceHistory.length > 1 ? priceHistory.at(-2)!.value : priceHistory.at(-1)!.value } : undefined} /><div className="detail-tags">{item.category && <span>{item.category}</span>}{item.rarity && <span className={`rarity-chip ${rarityTone(item.rarity)}`}>{item.rarity}</span>}{item.variant_color_name && <span>{item.variant_color_name}</span>}</div><div className="detail-demand"><span>COMMUNITY DEMAND</span><DemandStars rating={item.demand} /></div><ItemInformation item={item} />{item.description ? <p className="detail-description">{item.description}</p> : <p className="detail-description muted">No item description has been added yet.</p>}<div className="detail-meta"><span>Updated</span><b>{new Date(item.updated_at).toLocaleDateString()}</b></div><div className="detail-actions"><a className="primary-button" href={`/?tab=trade&item=${encodeURIComponent(item.id)}`}><ArrowLeftRight size={16} /> Compare in calculator</a><button className="secondary-button" onClick={() => void share()}>{copied ? <Check size={15} /> : <ExternalLink size={15} />}{copied ? 'Link copied' : 'Share item'}</button></div>{error && <p className="detail-error" role="status">{error}</p>}<p className="detail-disclaimer"><CircleHelp size={14} /> Community-entered value in coins. Trades are not guaranteed by Roblox.</p></article></div>
       <PriceHistoryChart item={item} history={priceHistory} canManageHistory={canManageHistory} deletingPointId={deletingPointId} actionMessage={historyActionMessage} onDeletePoint={deletePricePoint} />
       {related.length > 0 && <section className="related-section"><div className="section-heading"><div><div className="eyebrow section-eyebrow">KEEP EXPLORING</div><h2>More {item.category} items</h2></div></div><div className="item-grid related-grid">{related.map(entry => <ItemCard key={entry.id} item={entry} trend={relatedTrends[entry.id]} />)}</div></section>}
     </>}</main><footer className="footer"><a className="footer-brand" href="/"><BrandMark /> TURBO SOCCER VALUES</a><span>Fan-made values · Not affiliated with Roblox</span><span>Values are estimates, not an official trade guarantee.</span><a className="footer-admin-link" href="/admin">Admin access</a></footer></div>
@@ -701,7 +713,7 @@ function Admin() {
     setBusy(false)
   }
   function editItem(item: Item) {
-    setEditing(item.id); setHasColorVariants(false); setForm({ name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '', demand: item.demand == null ? '' : String(item.demand), variant_parent_id: item.variant_parent_id ?? '', variant_color_name: item.variant_color_name ?? '', variant_color_hex: item.variant_color_hex ?? '' }); window.scrollTo({ top: 0, behavior: 'smooth' })
+    setEditing(item.id); setHasColorVariants(false); setForm({ how_to_obtain: item.how_to_obtain ?? '', is_limited: item.is_limited == null ? '' : String(item.is_limited), is_available: item.is_available == null ? '' : String(item.is_available), availability_note: item.availability_note ?? '', event_start: item.event_start ?? '', event_end: item.event_end ?? '', name: item.name, value: item.value === null ? '' : String(item.value), category: item.category ?? '', rarity: item.rarity ?? '', description: item.description ?? '', image_path: item.image_path ?? '', demand: item.demand == null ? '' : String(item.demand), variant_parent_id: item.variant_parent_id ?? '', variant_color_name: item.variant_color_name ?? '', variant_color_hex: item.variant_color_hex ?? '' }); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   async function saveItem(e: FormEvent) {
     e.preventDefault(); if (!supabase) return
@@ -713,7 +725,14 @@ function Admin() {
     if (editing && form.variant_parent_id && !selectedVariant) { setNotice('Choose one of the 15 available color variants.'); return }
     setBusy(true); setNotice('')
     const demand = form.demand === '' ? null : Number(form.demand)
-    const payload = { name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand, variant_parent_id: form.variant_parent_id || null, variant_color_name: selectedVariant?.name ?? (form.variant_color_name.trim() || null), variant_color_hex: selectedVariant?.hex ?? (form.variant_color_hex || null) }
+    const payload = {
+      how_to_obtain: form.how_to_obtain.trim() || null,
+      is_limited: form.is_limited === '' ? null : form.is_limited === 'true',
+      is_available: form.is_available === '' ? null : form.is_available === 'true',
+      availability_note: form.availability_note.trim() || null,
+      event_start: form.event_start.trim() || null,
+      event_end: form.event_end.trim() || null,
+      name, value: val, image_path: form.image_path || null, category: form.category.trim() || null, rarity: form.rarity.trim() || null, description: form.description.trim() || null, demand, variant_parent_id: form.variant_parent_id || null, variant_color_name: selectedVariant?.name ?? (form.variant_color_name.trim() || null), variant_color_hex: selectedVariant?.hex ?? (form.variant_color_hex || null) }
     let error: { code?: string; message: string } | null = null
     if (editing) {
       const result = await supabase.from('items').update(payload).eq('id', editing)
@@ -872,6 +891,13 @@ function Admin() {
         <label className="upload-button"><Upload size={14} /> {uploading ? 'Uploading…' : 'Upload new photo'}<input type="file" accept="image/webp,image/png,image/jpeg,image/gif" disabled={uploading} onChange={e => { void uploadImage(e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
       </div>
       <div className="demand-field"><span className="demand-label">Community demand</span><small>Optional · saved with this item</small><DemandStars rating={form.demand === '' ? null : Number(form.demand)} interactive onChange={rating => setForm(current => ({ ...current, demand: rating == null ? '' : String(rating) }))} /></div>
+      <fieldset className="item-info-editor"><legend>Item information</legend>
+        <label>How to Obtain<input value={form.how_to_obtain} onChange={e => setForm({ ...form, how_to_obtain: e.target.value })} /></label>
+        <div className="form-two"><label>Limited<select value={form.is_limited} onChange={e => setForm({ ...form, is_limited: e.target.value })}><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></label>
+<label>Availability<select value={form.is_available} onChange={e => setForm({ ...form, is_available: e.target.value })}><option value="">Unknown</option><option value="true">Available</option><option value="false">Unavailable</option></select></label></div>
+        <label>Availability note<textarea rows={2} value={form.availability_note} onChange={e => setForm({ ...form, availability_note: e.target.value })} /></label>
+        <div className="form-two"><label>Event start<input type="date" max={form.event_end || undefined} value={form.event_start} onChange={e => setForm({ ...form, event_start: e.target.value })} /></label><label>Event end<input type="date" min={form.event_start || undefined} value={form.event_end} onChange={e => setForm({ ...form, event_end: e.target.value })} /></label></div>
+      </fieldset>
       <label>Description <small>optional</small><textarea maxLength={2000} rows={3} placeholder="Add item details" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
       <div className="preview-box"><span className="preview-label">PUBLIC LIST PREVIEW</span><div className="preview-item"><div className="preview-image">{itemImage(form.image_path) ? <img src={itemImage(form.image_path)!} alt="" /> : <ImagePlus size={18} />}{form.variant_color_hex && <span className="variant-color-band" style={{ '--variant-color': form.variant_color_hex } as React.CSSProperties} />}</div><div><b>{form.name || 'Item name'}</b><small>{form.category || 'Category'}</small>{form.rarity && <span className={`rarity-chip ${rarityTone(form.rarity)}`}>{form.rarity}</span>}</div><CoinValue value={form.value !== '' ? Number(form.value) : null} compact /></div></div>
       <button className="primary-button full-button" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add item'} <Check size={16} /></button></form></section>
@@ -887,4 +913,3 @@ function SetupPanel() {
 }
 
 export default App
-

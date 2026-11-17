@@ -103,4 +103,9 @@ export const sourceImages = [
   '/catalog/community/impossible-boss.png',
   '/catalog/community/unlabeled-car-1.png',
   '/catalog/community/unlabeled-car-2.png',
+  '/catalog/halloween/Bat king.png',
+  '/catalog/halloween/Haunted Syrup.png',
+  '/catalog/halloween/Pumpkin wheel.png',
+  "/catalog/halloween/Reaper's side.png",
+  "/catalog/halloween/Witches' Night.png",
 ] as const;

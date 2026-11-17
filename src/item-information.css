@@ -1,0 +1,12 @@
+.item-information { margin: 1.25rem 0; display: grid; gap: .65rem; }
+.item-information > div { display: grid; grid-template-columns: minmax(7rem, 30%) 1fr; gap: .6rem; align-items: baseline; }
+.item-information dt { font-weight: 650; }
+.item-information dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.item-information dd p { margin: .4rem 0 0; }
+.info-badge { display:inline-block; padding:.15rem .65rem; border-radius:1rem; background:#343b46; color:#f3f4f6; font-weight:700; }
+.info-badge.limited { background:#533911; color:#ffd17d; }
+.info-badge.available { background:#163e2f; color:#9af1bd; }
+.info-badge.unavailable { background:#50252e; color:#ffb4bd; }
+.item-info-editor { min-width:0; display:grid; gap:.8rem; margin:0; padding:1rem; border:1px solid #77849366; border-radius:10px; }
+.item-info-editor select { width:100%; padding:.55rem; font:inherit; }
+@media(max-width:420px){.item-information > div { grid-template-columns:1fr; gap:.2rem; }}

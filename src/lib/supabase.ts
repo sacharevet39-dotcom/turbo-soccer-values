@@ -34,6 +34,12 @@ export type Item = {
   image_path: string | null
   category: string | null
   rarity: string | null
+  how_to_obtain: string | null
+  is_limited: boolean | null
+  is_available: boolean | null
+  availability_note: string | null
+  event_start: string | null
+  event_end: string | null
   description: string | null
   demand: number | null
   variant_parent_id: string | null
