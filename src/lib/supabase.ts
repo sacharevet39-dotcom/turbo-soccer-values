@@ -71,7 +71,16 @@ export type PricePoint = {
   recorded_at: string
 }
 
+const specialCardArt: Record<string, string> = {
+  "/catalog/halloween/Bat king.png": "/catalog/halloween/Bat king.svg",
+  "/catalog/halloween/Haunted Syrup.png": "/catalog/halloween/Haunted Syrup.svg",
+  "/catalog/halloween/Pumpkin wheel.png": "/catalog/halloween/Pumpkin wheel.svg",
+  "/catalog/halloween/Reaper's side.png": "/catalog/halloween/Reaper's side.svg",
+  "/catalog/halloween/Witches' Night.png": "/catalog/halloween/Witches' Night.svg",
+}
+
 export function itemImage(path: string | null | undefined) {
+  if (path && specialCardArt[path]) return specialCardArt[path]
   if (!path) return null
   if (/^https?:\/\//i.test(path)) return path
   return path.startsWith('/') ? path : `/catalog/${path}`

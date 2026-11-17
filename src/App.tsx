@@ -105,7 +105,7 @@ function App() {
   }, [])
   const isAdminRoute = window.location.pathname.startsWith('/admin')
   if (isAdminRoute) return <Admin />
-  if (window.location.pathname.replace(/\/$/, '') === '/halloween') return <HalloweenPage />
+  if (['/special-item', '/halloween'].includes(window.location.pathname.replace(/\/$/, ''))) return <HalloweenPage />
   const itemRoute = window.location.pathname.match(/^\/item\/([^/]+)\/?$/)
   if (itemRoute) return <ItemDetailsPage itemId={decodeURIComponent(itemRoute[1])} />
   return <PublicApp />
@@ -124,13 +124,13 @@ function SiteNav({ activeView, onViewChange }: { activeView: View | 'admin' | 'h
     <a className="brand" href="/" aria-label="Turbo Soccer Values home" onClick={closeMenu}><BrandMark /><span className="brand-tagline">ITEM VALUES</span></a>
     <button type="button" className={`mobile-menu-toggle ${menuOpen ? 'active' : ''}`} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="site-navigation" onClick={() => setMenuOpen(open => !open)}>{menuOpen ? <X size={19} /> : <Menu size={19} />}<span>{menuOpen ? 'Close' : 'Menu'}</span></button>
     <nav id="site-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
-      <a href="/halloween" className={activeView === 'halloween' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'halloween' ? 'page' : undefined} onClick={closeMenu}>Halloween</a>
       {onViewChange ? <button type="button" className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'values'} onClick={() => { onViewChange('values'); closeMenu() }}>Value list</button> : <a className={activeView === 'values' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'values' ? 'page' : undefined} href="/" onClick={closeMenu}>Value list</a>}
       {onViewChange ? <button type="button" className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trade'} onClick={() => { onViewChange('trade'); closeMenu() }}>Trade calculator</button> : <a className={activeView === 'trade' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trade' ? 'page' : undefined} href="/?tab=trade" onClick={closeMenu}>Trade calculator</a>}
       {onViewChange ? <button type="button" className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'trades'} onClick={() => { onViewChange('trades'); closeMenu() }}>Trades</button> : <a className={activeView === 'trades' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'trades' ? 'page' : undefined} href="/?tab=trades" onClick={closeMenu}>Trades</a>}
       {onViewChange ? <button type="button" className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'chat'} onClick={() => { onViewChange('chat'); closeMenu() }}>Chat</button> : <a className={activeView === 'chat' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'chat' ? 'page' : undefined} href="/?tab=chat" onClick={closeMenu}>Chat</a>}
       {onViewChange && <TradeNotificationNavLink active={activeView === 'notifications'} onClick={() => { onViewChange('notifications'); closeMenu() }} />}
       {onViewChange ? <button type="button" className={activeView === 'codes' ? 'nav-link active' : 'nav-link'} aria-pressed={activeView === 'codes'} onClick={() => { onViewChange('codes'); closeMenu() }}>Codes</button> : <a className="nav-link" href="/?tab=codes" onClick={closeMenu}>Codes</a>}
+      <a href="/special-item" className={activeView === 'halloween' ? 'nav-link active' : 'nav-link'} aria-current={activeView === 'halloween' ? 'page' : undefined} onClick={closeMenu}>Special Item</a>
     </nav>
     <div className="top-actions"><OnlineCount /><VisitCount /><NavIdentityMenu /></div>
   </header>
@@ -474,8 +474,8 @@ function HalloweenPage() {
     void load()
     return () => { active = false }
   }, [])
-  return <><SiteNav activeView="halloween" /><main className="detail-page"><h1>Halloween collection</h1>
-    {failed ? <p role="alert">Could not load the collection. <a href="/halloween">Retry</a></p> : !items ? <p role="status">Loading items…</p> :
+  return <><SiteNav activeView="halloween" /><main className="detail-page"><h1>Special Item</h1>
+    {failed ? <p role="alert">Could not load the collection. <a href="/special-item">Retry</a></p> : !items ? <p role="status">Loading items…</p> :
     <div className="halloween-collection">{items.map(item => <article key={item.id} className="detail-card">
       {itemImage(item.image_path) && <img src={itemImage(item.image_path)!} alt={item.name} width="150" height="150" />}
       <h2><a href={'/item/' + item.id}>{item.name}</a></h2><ItemInformation item={item} />
